@@ -1,0 +1,49 @@
+---
+title: "Heagerty-Zhang simulation"
+author: "Ying Jin"
+date: "8/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+
+set.seed(818)
+library(here)
+```
+
+
+```{r, include=FALSE}
+source(here("Code/HZ_simulation.R"))
+```
+
+# Smoothed AUC(t) function
+```{r}
+df_auc <- bind_rows(df_auc)
+df_auc_long <- df_auc %>%
+  pivot_longer(cols = 3:6, names_to = "method", values_to = "auc")
+
+# scatter plots
+# plot(log(df_auc$ut), df_auc$tauc, cex = 0.2)
+# points(log(df_auc$ut), df_auc$mple_cox_auc, col = 2, cex = 0.2)
+# points(log(df_auc$ut), df_auc$mple_cox_local_auc, col = 3, cex = 0.2)
+# points(log(df_auc$ut), df_auc$schone_smooth, col = 4, cex = 0.2)
+
+# scattered AUC(t)
+# ggplot(df_auc_long, aes(x = log(ut), y = auc, group = method, col = method))+
+#   geom_point()
+
+# smoothed AUC(t)
+ggplot(df_auc_long, aes(x = log(ut), y = auc, group = method, col = method))+
+  geom_smooth(method = "gam", formula = y~s(x, bs = "cr"))
+
+
+# binned AUC(t)
+df_auc_long %>%
+  filter(log(ut)<= 2.01 | log(ut) >= 1.99) %>%
+  group_by(method) %>% summarise_at("auc", mean)
+```
+- Schoenfeld and local Cox are very close to each other
+- Did not out perform cox as in the paper
+- Did not get close to true AUC as in the paper
+- Schoenfeld and local cox should start higher and drop much faster than cox
