@@ -66,6 +66,7 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
   out     
 }
 
+
 #### caclulate empirical concordance #####
 
 calc_c <- function(marker, Stime, status){
@@ -120,3 +121,22 @@ intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, 
   
   return(iAUC)
 }
+
+##### Cauculate true concordance #####
+
+### marginal joint survival function
+
+true_st <- function(t, lambda=2, p=2, eta,sigma_eta){
+  St <- exp(-(lambda*exp(eta)*t)^p)*dnorm(eta, 0, sigma_eta)
+  return(St)
+}
+
+### marginal jpint density function
+
+true_ft <- function(t, lambda=2, p=2, eta,sigma_eta){
+  ft <- p*lambda^p*exp(eta*p)*t^(p-1)*exp(-(lambda*exp(eta)*t)^p)*dnorm(eta, 0, sigma_eta)
+  return(ft)
+}
+
+
+### distributio of eta: N(0, beta%*%sigma%*%beta)

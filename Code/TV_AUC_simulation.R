@@ -66,7 +66,7 @@ for(iter in 1:M){
   auc_lst[[iter]] <- auc_mat
   
   # concordance
-  ## First, estimate survival probablity from KP 
+  ## First, estimate survival probablity from Kaplan Meier curve (or cox model?)
   KM_est <- survfit(Surv(time,event)~1, timefix=FALSE,data=data)
   KM_est <- KM_est$surv[KM_est$n.event>0]
   
@@ -134,15 +134,43 @@ for(i in seq_along(tind)){
 # brief look at true auc
 true_auc <- data.frame(time_bin = tind, estimator = "true", auc = true_auc)
 
-# true concordance
+##### true concordance #####
 true_auc_sort <- true_auc %>% 
   mutate(time_bin = as.numeric(time_bin)) %>%
   arrange(time_bin)
 
-nt <- length(tind)
+
+## marginal S(t)
+tind <- true_auc_sort$time_bin
+sig_eta <- sum(Beta^2)
+true_marg_st <- rep(NA, length(tind))
+for(i in seq_along(true_marg_st)){
+  true_marg_st[i] <- adaptIntegrate(true_st, t=tind[i], lambda=2, p=2, sigma_eta=sig_eta,
+                                    lowerLimit = -5, upperLimit = 5)$integral
+}
+
+plot(tind, true_marg_st)
+
+## marginal f(t)
+true_marg_ft <- rep(NA, length(tind))
+for(i in seq_along(true_marg_ft)){
+  true_marg_ft[i] <-adaptIntegrate(true_ft, t=tind[i], lambda=2, p=2, sigma_eta=sig_eta,
+                                    lowerLimit = -5, upperLimit = 5)$integral
+}
+
+plot(tind, true_marg_ft)
+
+
+## use trapezoidal rule to approximate integral
+y_vec <- 2 * true_marg_ft * true_marg_st*true_auc_sort$auc
+
+plot(tind, y_vec)
+  
+nt <- nrow(true_auc_sort)
 width <- diff(true_auc_sort$time_bin)
-height <- true_auc_sort$auc[1:(nt-1)]+true_auc_sort$auc[2:nt]
+height <- y_vec[1:nt-1]+y_vec[2:nt]
 true_c <- sum(width*height/2, na.rm = T)
+
 
 ####  plot all iterations #####
 auc_df_mean <- auc_df %>% 
@@ -158,6 +186,14 @@ auc_df_mean %>%
   geom_line()+
   labs(title = "Average time-varying AUC")
 
+auc_df[, c(3, 5)] %>%
+  ggplot(aes(x = factor(time_bin), y = empirical))+
+  geom_boxplot()
+
+auc_df[, c(4, 5)] %>%
+  ggplot(aes(x = factor(time_bin), y = sm_empirical))+
+  geom_boxplot()
+  
 #### smooth instead of bin #####
 
 auc_df %>% 
@@ -175,7 +211,6 @@ c_df$estimator <- factor(c_df$estimator,
                          levels = c("empirical", "HZ_HZ", "HZ_SmS",
                                     "empirical_HZ", "empirical_SmS",
                                     "sm_empirical_HZ", "sm_empirical_SmS"))
-# true concordance
 
 
 c_df %>%  ggplot(aes(x = estimator, y = concordance))+
