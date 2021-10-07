@@ -6,6 +6,7 @@ library("tidyverse")
 library(here)
 library(risksetROC)
 library(mgcv)
+library(scam)
 # set the seed
 set.seed(102131)
 
@@ -15,7 +16,7 @@ source(here("Code/helpers.R"))
 
 #### Simulation set up ####
 
-M <- 10
+M <- 100
 N <- 200
 Beta <- c(1,-1,0.25)
 
@@ -23,7 +24,7 @@ Beta <- c(1,-1,0.25)
 
 # result container
 auc_lst <- list()
-  
+c_lst <- list()
 ##### simulation ####
 pb <- txtProgressBar(min=0, max=M,style=3)
 for(iter in 1:M){
@@ -41,7 +42,11 @@ for(iter in 1:M){
   # results container
   auc_mat <- matrix(NA, nrow = nt_pred, ncol = 4)
   colnames(auc_mat) <- c("time", "HZ", "empirical", "sm_empirical")
-  auc_mat[, "time"] <- t_vec                 
+  auc_mat[, "time"] <- t_vec    
+  
+  c_mat <- matrix(NA, nrow = 1, ncol = 7)
+  colnames(c_mat) <- c("empirical", "HZ_HZ", "empirical_HZ", "sm_empirical_HZ",
+                       "HZ_SmS", "empirical_SmS", "sm_empirical_SmS")
   
   # calculate HZ and empirical time_varying AUC
   for(i in seq_along(t_vec)){
@@ -60,16 +65,34 @@ for(iter in 1:M){
   # add to final results
   auc_lst[[iter]] <- auc_mat
   
+  # concordance
+  ## First, estimate survival probablity from KP 
+  KM_est <- survfit(Surv(time,event)~1, timefix=FALSE,data=data)
+  KM_est <- KM_est$surv[KM_est$n.event>0]
+  
+  auc_sort <-arrange(data.frame(auc_mat), time)
+  ## HZ and smS concordance
+  c_mat[, "HZ_HZ"] <- intAUC(auc_sort$HZ, auc_sort$time, KM_est, method = "HZ")
+  c_mat[, "empirical_HZ"] <- intAUC(auc_sort$empirical, auc_sort$time, KM_est, method = "HZ")
+  c_mat[, "sm_empirical_HZ"] <- intAUC(auc_sort$sm_empirical, auc_sort$time, KM_est, method = "HZ")
+  c_mat[, "HZ_SmS"] <- intAUC(auc_sort$HZ, auc_sort$time, KM_est, method = "smS")
+  c_mat[, "empirical_SmS"] <- intAUC(auc_sort$empirical, auc_sort$time, KM_est, method = "smS")
+  c_mat[, "sm_empirical_SmS"] <- intAUC(auc_sort$sm_empirical, auc_sort$time, KM_est, method = "smS")
+  c_mat[, "empirical"] <- calc_c(data$eta, data$time, data$event)
+  
+  c_lst[[iter]] <- c_mat 
+  
   setTxtProgressBar(pb, value=iter)
 }
 
 
 
 # plot 1 iter
-auc_lst[[2]] %>% data.frame() %>%
+auc_lst[[1]] %>% data.frame() %>%
   pivot_longer(cols = 2:4) %>%
   ggplot(aes(y = value, x = as.numeric(time), group = name, col = name))+
   geom_line()
+
 
 
 ##### true AUC #####
@@ -111,6 +134,16 @@ for(i in seq_along(tind)){
 # brief look at true auc
 true_auc <- data.frame(time_bin = tind, estimator = "true", auc = true_auc)
 
+# true concordance
+true_auc_sort <- true_auc %>% 
+  mutate(time_bin = as.numeric(time_bin)) %>%
+  arrange(time_bin)
+
+nt <- length(tind)
+width <- diff(true_auc_sort$time_bin)
+height <- true_auc_sort$auc[1:(nt-1)]+true_auc_sort$auc[2:nt]
+true_c <- sum(width*height/2, na.rm = T)
+
 ####  plot all iterations #####
 auc_df_mean <- auc_df %>% 
   dplyr::select(time_bin, HZ, empirical, sm_empirical) %>%
@@ -133,12 +166,21 @@ auc_df %>%
   pivot_longer(3:6, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
   geom_smooth(se = F)
-  group_by(estimator, time_bin) %>% 
-  summarize_at("auc", mean)
+  
 
-##### Questions #####
-# takes too long to calculate true AUC
-# real AUC across all simulations are the same?
-#  -- if we pre-specify tind and etaind, than real AUC across all simulation would be the same!
-# need the document about math derivations to understand lambda and sigma
-# first NA value in real AUC
+##### concordance #####
+c_df <- bind_rows(lapply(c_lst, as.data.frame))
+c_df <- c_df %>% pivot_longer(1:7, names_to = "estimator", values_to = "concordance")
+c_df$estimator <- factor(c_df$estimator, 
+                         levels = c("empirical", "HZ_HZ", "HZ_SmS",
+                                    "empirical_HZ", "empirical_SmS",
+                                    "sm_empirical_HZ", "sm_empirical_SmS"))
+# true concordance
+
+
+c_df %>%  ggplot(aes(x = estimator, y = concordance))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 60))+
+  geom_hline(yintercept = true_c)
+
+

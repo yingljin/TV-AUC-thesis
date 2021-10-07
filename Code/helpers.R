@@ -65,3 +65,58 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
   
   out     
 }
+
+#### caclulate empirical concordance #####
+
+calc_c <- function(marker, Stime, status){
+  utimes <- sort(unique(Stime[status==1]))
+  num <- denom <- 0
+  for(ut in seq_along(utimes)){
+    ## current time
+    ti    <- utimes[ut]
+    ## subjects who experienced an event at current time
+    inx_i <- which(Stime == ti & status==1)
+    ## subjects with observed times beyond event current time
+    inx_j <- which(Stime > ti)
+    ## number of "cases" and "controls" at time current time
+    n_case_t    <- length(inx_i)
+    n_control_t <- length(inx_j)
+    for(i in seq_along(inx_i)){
+      num   <- num + sum( (marker[inx_j] > marker[inx_i[i]] ) ) + 0.5*sum(marker[inx_j] == marker[inx_i[i]])
+    }
+    denom <- denom + n_case_t*n_control_t
+  }
+  1-num/denom
+}
+
+#### calculate concordance weighted by survival probablity ####
+intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, Ct=NULL, k=30,...){
+  ut <- utimes
+  # estimate survival probablity
+  if(method == "HZ"){
+      ft <- rep(NA, length(St))
+      ft[1] <- (1 - St[1])/(ut[1])
+      for(j in 2:length(St)){
+        ft[j] <- (St[j - 1] - St[j])/(ut[j]-ut[j-1])
+      }
+    }
+  if(method == "smS"){
+      fit_S <- scam(St ~ s(ut, bs="mpd",k=k),
+                    data=data.frame(ut=ut, St=St))
+      df_pred <- data.frame(ut = rep(ut, each=2) + rep(c(-0.00001,0.00001), length(ut)))
+      St_pred <- predict(fit_S, newdata=df_pred, type='response')
+      ft     <- -diff(St_pred)[seq(1,2*length(ut),by=2)]                    
+    }
+    mIndex <- length(ut)
+    wt <- 2 * ft * St
+    # use trapezoidal rule to approximate integral
+    iAUC <- ut[1] * wt[1] * AUC[1] / 2 # ft[0] = 1 - St[0] = 1 - 1 = 0, so wt[0] = 0
+    W <- ut[1] * wt[1] / 2
+    for(j in 2:length(St)){
+      iAUC <- iAUC + (wt[j] * AUC[j] + wt[j - 1] * AUC[j - 1]) * (ut[j] - ut[j - 1]) / 2
+      W <- W + (wt[j] + wt[j - 1]) * (ut[j] - ut[j - 1]) / 2
+    }
+    iAUC <- iAUC / W
+  
+  return(iAUC)
+}
