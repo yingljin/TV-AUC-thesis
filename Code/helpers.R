@@ -12,7 +12,7 @@ gen_St <- function(eta, lambda, p, gen_Ct = function(N) pmin(1,rexp(N, 1/5)) ){
   data.frame("event" = as.numeric(St<=Ct), "time" = pmin(St,Ct), "eta" = eta)
 }
 
-#### Integration functions ####
+#### Integration functions for true AUC ####
 ### Note that we need two different functions since there is a double integral in the specificity formula
 ## function for integrating incident sensitivity
 my_fn_sens <- function(x, t, lambda=1, p=1, mn_eta=0, sigma_eta=2){
@@ -24,8 +24,7 @@ my_fn_spec <- function(x, lambda=1, p=1, mn_eta=0, sigma_eta=2){
 }
 
 
-#### Calculate AUC ####
-## calculate AUC by integrating the ROC curve 
+#### Calculate AUC  by integrating the ROC curve ####
 trap_integrate_ROC <- function(eta, sens, spec){
   if(!Inf %in% eta){
     sens <- c(sens, 0)
@@ -42,7 +41,7 @@ trap_integrate_ROC <- function(eta, sens, spec){
 }
 
 
-##### Empirical estimator #####
+##### Empirical estimator of AUC #####
 ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
   if (length(entry) == 0) {
     entry = rep(0, NROW(Stime))
@@ -68,7 +67,6 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
 
 
 #### caclulate empirical concordance #####
-
 calc_c <- function(marker, Stime, status){
   utimes <- sort(unique(Stime[status==1]))
   num <- denom <- 0
@@ -90,7 +88,7 @@ calc_c <- function(marker, Stime, status){
   1-num/denom
 }
 
-#### calculate concordance weighted by survival probablity ####
+#### calculate concordance weighted by estimated survival probability and density ####
 intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, Ct=NULL, k=30,...){
   ut <- utimes
   # estimate survival probablity
@@ -131,12 +129,10 @@ true_st <- function(t, lambda=2, p=2, eta,sigma_eta){
   return(St)
 }
 
-### marginal jpint density function
+### marginal joint density function
 
 true_ft <- function(t, lambda=2, p=2, eta,sigma_eta){
-  ft <- p*lambda^p*exp(eta*p)*t^(p-1)*exp(-(lambda*exp(eta)*t)^p)*dnorm(eta, 0, sigma_eta)
+  ft <- p*lambda^p*t^(p-1)*exp(p*eta-(lambda*exp(eta)*t)^p)*dnorm(eta, 0, sigma_eta)
   return(ft)
 }
 
-
-### distributio of eta: N(0, beta%*%sigma%*%beta)

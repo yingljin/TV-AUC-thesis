@@ -1,8 +1,12 @@
 ---
-title: "Heagerty-Zhang simulation"
+title: "TV-auc simulation"
 author: "Ying Jin"
 date: "8/18/2021"
-output: html_document
+output: 
+  html_document:
+     number_sections: yes
+     toc: yes
+     toc_float: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -10,40 +14,106 @@ knitr::opts_chunk$set(echo = F)
 
 set.seed(818)
 library(here)
+library(tidyverse)
+library(ggplot2)
 ```
 
-
-```{r, include=FALSE}
-source(here("Code/HZ_simulation.R"))
-```
-
-# Smoothed AUC(t) function
+# Time-Varying AUC
 ```{r}
-df_auc <- bind_rows(df_auc)
-df_auc_long <- df_auc %>%
-  pivot_longer(cols = 3:6, names_to = "method", values_to = "auc")
-
-# scatter plots
-# plot(log(df_auc$ut), df_auc$tauc, cex = 0.2)
-# points(log(df_auc$ut), df_auc$mple_cox_auc, col = 2, cex = 0.2)
-# points(log(df_auc$ut), df_auc$mple_cox_local_auc, col = 3, cex = 0.2)
-# points(log(df_auc$ut), df_auc$schone_smooth, col = 4, cex = 0.2)
-
-# scattered AUC(t)
-# ggplot(df_auc_long, aes(x = log(ut), y = auc, group = method, col = method))+
-#   geom_point()
-
-# smoothed AUC(t)
-ggplot(df_auc_long, aes(x = log(ut), y = auc, group = method, col = method))+
-  geom_smooth(method = "gam", formula = y~s(x, bs = "cr"))
-
-
-# binned AUC(t)
-df_auc_long %>%
-  filter(log(ut)<= 2.01 | log(ut) >= 1.99) %>%
-  group_by(method) %>% summarise_at("auc", mean)
+load(here("outputData/auc.RData"))
+load(here("outputData/concordance.RData"))
 ```
-- Schoenfeld and local Cox are very close to each other
-- Did not out perform cox as in the paper
-- Did not get close to true AUC as in the paper
-- Schoenfeld and local cox should start higher and drop much faster than cox
+
+
+## Simulation results
+
+```{r}
+auc_df_mean %>%
+  ggplot(aes(x = time_bin, y = auc, col = estimator))+
+  geom_line()+
+  labs(title = "Binned average time-varying AUC")
+```
+
+```{r}
+auc_df %>% 
+  left_join(true_auc %>% dplyr::select(time_bin, auc) %>% rename(true = auc)) %>%
+  relocate(time_bin, .before = 1) %>%
+  pivot_longer(3:6, names_to = "estimator", values_to = "auc") %>%
+  ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
+  geom_smooth(se = F)+
+  labs(title = "Smoothed time-varying AUC")
+```
+
+```{r}
+auc_df%>%
+  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
+  ggplot(aes(x = factor(time_bin), y = auc))+
+  geom_boxplot()+
+  facet_wrap(~estimator, nrow = 3, ncol = 1)+
+  labs(x = "",)+
+  theme(axis.ticks.x = element_blank(), axis.text.x = element_blank())
+```
+
+## Problem with true auc
+
+Abnormal value of specificity (1.013>>1) when when t = 0.145 and eta = 1.76767677
+
+```{r}
+plot(auc~time_bin, auc_df_mean %>% filter(estimator=="true"))
+```
+
+## Concordance
+
+```{r}
+c_df %>%  ggplot(aes(x = estimator, y = concordance))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 60))+
+  geom_hline(yintercept = true_c)+
+  labs(title = "Concordance")
+```
+
+# Questions
+
+1. Abnormal value of true AUC at a single specific point
+- actually, it's a abnormaly specificity at specific time and $\eta$ value
+
+2. Estimating survival function and density for concordance
+- marginal: integrating out linear predictor($\eta$)
+- mathmatical derivation
+
+# Notes
+
+<!-- code  -->
+
+## TV-AUC
+Figure
+
+## Concordance
+Figure
+
+# Non-parametric estimators
+
+## TV-AUC
+- Unsmoothed non-parametric
+- Smoothed parametric
+
+## Concordance
+
+- Integrated I/D AUC:
+Fully non-parametric I/D AUC (unsmoothed)
+Fully non-parametric I/D AUC (smoothed)
+Heagerty & Zheng
+
+- Gonen & Heller3
+
+- Harell’s 
+
+# Extensions
+
+## Cumulative/Dynamic estimator
+
+## Complex survey Design
+- Clustered sampling scheme
+
+
+

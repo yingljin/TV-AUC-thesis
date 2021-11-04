@@ -16,8 +16,8 @@ source(here("Code/helpers.R"))
 
 #### Simulation set up ####
 
-M <- 100
-N <- 200
+M <- 100 # number of simulated data sets
+N <- 200 # number of subjects
 Beta <- c(1,-1,0.25)
 
 # delta_t <- 0.05
@@ -25,6 +25,7 @@ Beta <- c(1,-1,0.25)
 # result container
 auc_lst <- list()
 c_lst <- list()
+
 ##### simulation ####
 pb <- txtProgressBar(min=0, max=M,style=3)
 for(iter in 1:M){
@@ -66,7 +67,7 @@ for(iter in 1:M){
   auc_lst[[iter]] <- auc_mat
   
   # concordance
-  ## First, estimate survival probablity from Kaplan Meier curve (or cox model?)
+  ## First, estimate survival probability from Kaplan Meier curve 
   KM_est <- survfit(Surv(time,event)~1, timefix=FALSE,data=data)
   KM_est <- KM_est$surv[KM_est$n.event>0]
   
@@ -101,7 +102,7 @@ auc_df <- bind_rows(auc_lst)
 # to speed up, binned time to fewer points
 brk <- seq(0, 1, 0.01)
 auc_df$time_bin <- cut(auc_df$time, breaks = brk, include.lowest = T,
-                       labels = seq(0, 1, length.out = 100))
+                       seq(0.005, 0.995, 0.01))
 auc_df$time_bin <- as.numeric(as.character(auc_df$time_bin))
 
 tind <- unique(auc_df$time_bin)
@@ -133,20 +134,24 @@ for(i in seq_along(tind)){
 
 # brief look at true auc
 true_auc <- data.frame(time_bin = tind, estimator = "true", auc = true_auc)
+plot(true_auc$time_bin, true_auc$auc) # one unexpected outlier? # time bin = 0.135 and 0.145
+true_auc %>% arrange(time_bin)
+
+# abnormal value when t = 0.145 and eta = 1.7676677
 
 ##### true concordance #####
 true_auc_sort <- true_auc %>% 
   mutate(time_bin = as.numeric(time_bin)) %>%
   arrange(time_bin)
 
-
+## shall we use marginal survival function by intergrating out eta?
 ## marginal S(t)
 tind <- true_auc_sort$time_bin
-sig_eta <- sum(Beta^2)
+sig_eta <- sqrt(sum(Beta^2))
 true_marg_st <- rep(NA, length(tind))
 for(i in seq_along(true_marg_st)){
   true_marg_st[i] <- adaptIntegrate(true_st, t=tind[i], lambda=2, p=2, sigma_eta=sig_eta,
-                                    lowerLimit = -5, upperLimit = 5)$integral
+                                    lowerLimit = -Inf, upperLimit = Inf)$integral
 }
 
 plot(tind, true_marg_st)
@@ -155,7 +160,7 @@ plot(tind, true_marg_st)
 true_marg_ft <- rep(NA, length(tind))
 for(i in seq_along(true_marg_ft)){
   true_marg_ft[i] <-adaptIntegrate(true_ft, t=tind[i], lambda=2, p=2, sigma_eta=sig_eta,
-                                    lowerLimit = -5, upperLimit = 5)$integral
+                                    lowerLimit = -Inf, upperLimit = 500)$integral
 }
 
 plot(tind, true_marg_ft)
@@ -171,8 +176,8 @@ width <- diff(true_auc_sort$time_bin)
 height <- y_vec[1:nt-1]+y_vec[2:nt]
 true_c <- sum(width*height/2, na.rm = T)
 
+####  prep for plot AUC #####
 
-####  plot all iterations #####
 auc_df_mean <- auc_df %>% 
   dplyr::select(time_bin, HZ, empirical, sm_empirical) %>%
   pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
@@ -181,30 +186,7 @@ auc_df_mean <- auc_df %>%
 
 auc_df_mean <- rbind(auc_df_mean, true_auc)
 
-auc_df_mean %>%
-  ggplot(aes(x = time_bin, y = auc, col = estimator))+
-  geom_line()+
-  labs(title = "Average time-varying AUC")
-
-auc_df[, c(3, 5)] %>%
-  ggplot(aes(x = factor(time_bin), y = empirical))+
-  geom_boxplot()
-
-auc_df[, c(4, 5)] %>%
-  ggplot(aes(x = factor(time_bin), y = sm_empirical))+
-  geom_boxplot()
-  
-#### smooth instead of bin #####
-
-auc_df %>% 
-  left_join(true_auc %>% dplyr::select(time_bin, auc) %>% rename(true = auc)) %>%
-  relocate(time_bin, .before = 1) %>%
-  pivot_longer(3:6, names_to = "estimator", values_to = "auc") %>%
-  ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
-  geom_smooth(se = F)
-  
-
-##### concordance #####
+##### plot concordance #####
 c_df <- bind_rows(lapply(c_lst, as.data.frame))
 c_df <- c_df %>% pivot_longer(1:7, names_to = "estimator", values_to = "concordance")
 c_df$estimator <- factor(c_df$estimator, 
@@ -213,9 +195,12 @@ c_df$estimator <- factor(c_df$estimator,
                                     "sm_empirical_HZ", "sm_empirical_SmS"))
 
 
-c_df %>%  ggplot(aes(x = estimator, y = concordance))+
-  geom_boxplot()+
-  theme(axis.text.x = element_text(angle = 60))+
-  geom_hline(yintercept = true_c)
+# c_df %>%  ggplot(aes(x = estimator, y = concordance))+
+#   geom_boxplot()+
+#   theme(axis.text.x = element_text(angle = 60))+
+#   geom_hline(yintercept = true_c)
 
 
+##### export simulation results #####
+save(auc_df, auc_df_mean, true_auc, file = here("outputData/auc.RData"))
+save(c_df, true_c, file = here("outputData/concordance.RData"))
