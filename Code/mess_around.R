@@ -2,6 +2,8 @@ library(MASS)
 library(risksetROC)
 library(survival)
 
+
+
 # investigaete abnormal value of true auc when when t = 0.145 and eta = 1.76767677
 t_i <- 0.145
 # t_i <- 0.155

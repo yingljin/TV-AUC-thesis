@@ -109,6 +109,14 @@ tind <- unique(auc_df$time_bin)
 etaind <- seq(-5, 5, length.out = 100)
 true_auc <- rep(NA, length(tind))
 
+summary(auc_df$time)
+summary(data$eta)
+
+## in calculating sensitivity and specificity
+## restrict boundaries of eta and t to a reasonable value based on distribution
+## to avoid numeric issues
+## technically, time cannot be greater than 1
+
 pb <- txtProgressBar(min=0, max=length(tind), style=3)
 for(i in seq_along(tind)){
   t_i <- tind[i]
@@ -123,8 +131,8 @@ for(i in seq_along(tind)){
     sens[j] <- adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(eta_ij), upperLimit=c(500), lambda=2, p=2, sigma_eta=sqrt(sum(Beta^2)))$integral/
       adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(-Inf), upperLimit=c(500), lambda=2, p=2, sigma_eta=sqrt(sum(Beta^2)))$integral
     
-    spec[j] <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(eta_ij, Inf), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral/
-      adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(Inf, Inf), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral
+    spec[j] <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(eta_ij, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral/
+      adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(Inf, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral
   }
   ## integrate to AUC
   true_auc[i] <- trap_integrate_ROC(etaind, sens, spec)
@@ -150,8 +158,9 @@ tind <- true_auc_sort$time_bin
 sig_eta <- sqrt(sum(Beta^2))
 true_marg_st <- rep(NA, length(tind))
 for(i in seq_along(true_marg_st)){
-  true_marg_st[i] <- adaptIntegrate(true_st, t=tind[i], lambda=2, p=2, sigma_eta=sig_eta,
-                                    lowerLimit = -Inf, upperLimit = Inf)$integral
+  # true_marg_st[i] <- adaptIntegrate(true_st, t=tind[i], lambda=2, p=2, sigma_eta=sig_eta,
+  #                                   lowerLimit = -Inf, upperLimit = Inf)$integral
+  true_marg_st[i] <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, tind[i]), upperLimit=c(Inf, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral
 }
 
 plot(tind, true_marg_st)
@@ -159,8 +168,7 @@ plot(tind, true_marg_st)
 ## marginal f(t)
 true_marg_ft <- rep(NA, length(tind))
 for(i in seq_along(true_marg_ft)){
-  true_marg_ft[i] <-adaptIntegrate(true_ft, t=tind[i], lambda=2, p=2, sigma_eta=sig_eta,
-                                    lowerLimit = -Inf, upperLimit = 500)$integral
+  true_marg_ft[i] <- adaptIntegrate(my_fn_sens, t=tind[i], lowerLimit=c(-Inf), upperLimit=c(500), lambda=2, p=2, sigma_eta=sqrt(sum(Beta^2)))$integral
 }
 
 plot(tind, true_marg_ft)

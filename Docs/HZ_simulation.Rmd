@@ -74,12 +74,21 @@ c_df %>%  ggplot(aes(x = estimator, y = concordance))+
 
 # Questions
 
-1. Abnormal value of true AUC at a single specific point
-- actually, it's a abnormaly specificity at specific time and $\eta$ value
+1. Restricting both eta and t when calculating true sensitivity and specificity?
+1. Technically, time cannot be greater than 1
 
-2. Estimating survival function and density for concordance
+$$t_c = min\{1, rexp(1/5)\} \leq 1$$
+
+$$t = min\{t_e, t_c\}\leq t_c \leq 1$$
+but if I restrict time to 1 when calculating specificity, the true AUC ended up very low.
+
+Is it because when we are trying to calculate true AUC, we assume a distribution of t that takes value $(0, \infty)$, and did not consider the distribution of censoring time?
+
+In other words, in derivation of sensivibity and specificity formula, we did not include parameters about censering distribution. How is censoring accounted for than in the estimation? Is it by the defination formula?
+
+3. Estimating survival function and density for concordance
 - marginal: integrating out linear predictor($\eta$)
-- mathmatical derivation
+- mathematical derivation
 
 # Notes
 
