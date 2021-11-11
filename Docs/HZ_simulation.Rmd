@@ -28,17 +28,16 @@ load(here("outputData/concordance.RData"))
 ## Simulation results
 
 ```{r}
-auc_df_mean %>%
-  ggplot(aes(x = time_bin, y = auc, col = estimator))+
-  geom_line()+
-  labs(title = "Binned average time-varying AUC")
+auc_df %>% dplyr::select(-time_bin) %>%
+  pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
+  ggplot(aes(x = time, y = auc, col = estimator))+
+  geom_line(alpha = 0.5)+
+  labs(title = "True time-varying AUC")
 ```
 
 ```{r}
-auc_df %>% 
-  left_join(true_auc %>% dplyr::select(time_bin, auc) %>% rename(true = auc)) %>%
-  relocate(time_bin, .before = 1) %>%
-  pivot_longer(3:6, names_to = "estimator", values_to = "auc") %>%
+auc_df %>% dplyr::select(-time_bin) %>%
+  pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
   geom_smooth(se = F)+
   labs(title = "Smoothed time-varying AUC")
@@ -54,41 +53,42 @@ auc_df%>%
   theme(axis.ticks.x = element_blank(), axis.text.x = element_blank())
 ```
 
-## Problem with true auc
-
-Abnormal value of specificity (1.013>>1) when when t = 0.145 and eta = 1.76767677
-
-```{r}
-plot(auc~time_bin, auc_df_mean %>% filter(estimator=="true"))
-```
-
 ## Concordance
 
 ```{r}
 c_df %>%  ggplot(aes(x = estimator, y = concordance))+
   geom_boxplot()+
-  theme(axis.text.x = element_text(angle = 60))+
-  geom_hline(yintercept = true_c)+
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5))+
+  geom_hline(yintercept = true_c, col = "red")+
   labs(title = "Concordance")
 ```
 
 # Questions
 
 1. Restricting both eta and t when calculating true sensitivity and specificity?
-1. Technically, time cannot be greater than 1
+- doing that kinda speed the simulation up
+2. Technically, time cannot be greater than 1
 
 $$t_c = min\{1, rexp(1/5)\} \leq 1$$
 
 $$t = min\{t_e, t_c\}\leq t_c \leq 1$$
-but if I restrict time to 1 when calculating specificity, the true AUC ended up very low.
+but if I restrict time to 1 when calculating specificity, the true AUC ended up very low.Is it because when we are trying to calculate true AUC, we assume a distribution of t that takes value $(0, \infty)$, and did not consider the distribution of censoring time? 
 
-Is it because when we are trying to calculate true AUC, we assume a distribution of t that takes value $(0, \infty)$, and did not consider the distribution of censoring time?
-
-In other words, in derivation of sensivibity and specificity formula, we did not include parameters about censering distribution. How is censoring accounted for than in the estimation? Is it by the defination formula?
+- Yes. Also if censor time is independent of event time, the math formula would stay the same.
 
 3. Estimating survival function and density for concordance
 - marginal: integrating out linear predictor($\eta$)
-- mathematical derivation
+- use the trucated version of concordance in HZ paper, where weight is devided by its intergral
+(also 1-max(S_t)^2)
+
+4. For true AUC:
+
+- Calculate in the same way but on a denser interval
+- Use linear interpolation to evaluated it at all the generated event time (funciton approx)
+- So we don't have to bin/smooth estimated AUC anymore
+
+5. Try to expand iteration and sample size. Identify where it takes most time
+
 
 # Notes
 

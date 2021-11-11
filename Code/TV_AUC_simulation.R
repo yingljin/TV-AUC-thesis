@@ -132,7 +132,7 @@ for(i in seq_along(tind)){
       adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(-Inf), upperLimit=c(500), lambda=2, p=2, sigma_eta=sqrt(sum(Beta^2)))$integral
     
     spec[j] <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(eta_ij, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral/
-      adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(Inf, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral
+      adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(500, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral
   }
   ## integrate to AUC
   true_auc[i] <- trap_integrate_ROC(etaind, sens, spec)
@@ -145,10 +145,17 @@ true_auc <- data.frame(time_bin = tind, estimator = "true", auc = true_auc)
 plot(true_auc$time_bin, true_auc$auc) # one unexpected outlier? # time bin = 0.135 and 0.145
 true_auc %>% arrange(time_bin)
 
+# use linear interpolation for other times
+interpolated_auc<-approx(x = true_auc$time_bin, y = true_auc$auc, xout = auc_df$time)$y
+plot(auc_df$time, interpolated_auc)
+auc_df$true <- interpolated_auc
+
 # abnormal value when t = 0.145 and eta = 1.7676677
 
 ##### true concordance #####
-true_auc_sort <- true_auc %>% 
+## didn't include the interpolated AUC
+## because they are techniqually estimated
+true_auc_sort <- true_auc %>%
   mutate(time_bin = as.numeric(time_bin)) %>%
   arrange(time_bin)
 
@@ -175,8 +182,14 @@ plot(tind, true_marg_ft)
 
 
 ## use trapezoidal rule to approximate integral
-y_vec <- 2 * true_marg_ft * true_marg_st*true_auc_sort$auc
+## use truncated version for weights
 
+
+w_vec <- 2 * true_marg_ft * true_marg_st
+w_vec <- w_vec/(1-true_marg_st[which.max(tind)]^2)
+y_vec <- w_vec*true_auc_sort$auc
+
+plot(tind, w_vec)
 plot(tind, y_vec)
   
 nt <- nrow(true_auc_sort)
