@@ -74,16 +74,18 @@ c_df %>%  ggplot(aes(x = estimator, y = concordance))+
 
 # Notes
 
-<!-- code  -->
+1. For smoothed empirical estimator, maybe try inverse variance weighted gam?
+   - calculated individual variance for each observation (time point in this case)
+   
+2. Investigate the weird outliers of smoothed empirical estimator
 
-## TV-AUC
-Figure
+3. Add Gonen & Heller estimator for concordance
+   - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4886856/
 
-## Concordance
-Figure
+4. Add model with noise signals
 
-# Non-parametric estimators
-
+   
+   
 ## TV-AUC
 - Unsmoothed non-parametric
 - Smoothed parametric

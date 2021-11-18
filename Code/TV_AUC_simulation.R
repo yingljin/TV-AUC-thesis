@@ -97,18 +97,20 @@ auc_lst[[1]] %>% data.frame() %>%
 auc_lst <- lapply(auc_lst, as.data.frame)
 auc_df <- bind_rows(auc_lst)
 
+## concordance
+c_df <- bind_rows(lapply(c_lst, as.data.frame))
+c_df <- c_df %>% pivot_longer(1:7, names_to = "estimator", values_to = "concordance")
+c_df$estimator <- factor(c_df$estimator, 
+                         levels = c("empirical", "HZ_HZ", "HZ_SmS",
+                                    "empirical_HZ", "empirical_SmS",
+                                    "sm_empirical_HZ", "sm_empirical_SmS"))
+
+save(auc_df, c_df, file = here("outputData/estimated_values.RData"))
+
 ##### true AUC and concordance #####
 # do not run this section
 # instead load saved data 
-# unless some part of it is updated
-
-# to speed up, binned time to fewer points
-# brk <- seq(0, 1, 0.01)
-# auc_df$time_bin <- cut(auc_df$time, breaks = brk, include.lowest = T,
-#                        seq(0.005, 0.995, 0.01))
-# auc_df$time_bin <- as.numeric(as.character(auc_df$time_bin))
-
-# tind <- unique(auc_df$time_bin)
+# unless we need different method to calculated true AUC
 range(auc_df$time)
 tind <- seq(0, 1, length.out = 500)
 etaind <- seq(-5, 5, length.out = 100)
@@ -121,12 +123,9 @@ summary(data$eta)
 ## restrict boundaries of eta and t to a reasonable value based on distribution
 ## to avoid numeric issues
 ## technically, time cannot be greater than 1
-
 pb <- txtProgressBar(min=0, max=length(tind), style=3)
 for(i in seq_along(tind)){
   t_i <- tind[i]
-  #data_i_sens <- subset(data, (time >= t_i) & (time <= (t_i + delta_t)) & (event == 1))
-  #data_i_spec <- subset(data, (time >= t_i))
   ## containers
   sens <- rep(NA, length(etaind))
   spec <- rep(NA, length(etaind))
@@ -146,13 +145,11 @@ for(i in seq_along(tind)){
 }
 
 # brief look at true auc
-# true_auc <- data.frame(time_bin = tind, estimator = "true", auc = true_auc)
-plot(tind, true_auc) # one unexpected outlier? # time bin = 0.135 and 0.145
-# true_auc %>% arrange(time_bin)
+plot(tind, true_auc) 
 
 # true concordance
 ## didn't include the interpolated AUC
-## because they are techniqually estimated
+## because they are technically estimated
 true_auc_sort <- data.frame(time_bin = tind, auc = true_auc)
 
 ## shall we use marginal survival function by intergrating out eta?
@@ -160,8 +157,6 @@ true_auc_sort <- data.frame(time_bin = tind, auc = true_auc)
 sig_eta <- sqrt(sum(Beta^2))
 true_marg_st <- rep(NA, length(tind))
 for(i in seq_along(true_marg_st)){
-  # true_marg_st[i] <- adaptIntegrate(true_st, t=tind[i], lambda=2, p=2, sigma_eta=sig_eta,
-  #                                   lowerLimit = -Inf, upperLimit = Inf)$integral
   true_marg_st[i] <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, tind[i]), upperLimit=c(Inf, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral
 }
 
@@ -191,32 +186,4 @@ height <- y_vec[1:nt-1]+y_vec[2:nt]
 true_c <- sum(width*height/2, na.rm = T)
 
 save(true_auc_sort, true_c, true_marg_ft, true_marg_ft, file = here("outputData/true_values.RData"))
-
-
-####  export data #####
-
-# auc_df_mean <- auc_df %>% 
-#   dplyr::select(time_bin, HZ, empirical, sm_empirical) %>%
-#   pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
-#   group_by(estimator, time_bin) %>% 
-#   summarize_at("auc", mean)
-# 
-# auc_df_mean <- rbind(auc_df_mean, true_auc)'
-
-
-c_df <- bind_rows(lapply(c_lst, as.data.frame))
-c_df <- c_df %>% pivot_longer(1:7, names_to = "estimator", values_to = "concordance")
-c_df$estimator <- factor(c_df$estimator, 
-                         levels = c("empirical", "HZ_HZ", "HZ_SmS",
-                                    "empirical_HZ", "empirical_SmS",
-                                    "sm_empirical_HZ", "sm_empirical_SmS"))
-
-
-# c_df %>%  ggplot(aes(x = estimator, y = concordance))+
-#   geom_boxplot()+
-#   theme(axis.text.x = element_text(angle = 60))+
-#   geom_hline(yintercept = true_c)
-
-
-save(auc_df, c_df, file = here("outputData/estimated_values.RData"))
 
