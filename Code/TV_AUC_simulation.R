@@ -16,8 +16,8 @@ source(here("Code/helpers.R"))
 
 #### Simulation set up ####
 
-M <- 100 # number of simulated data sets
-N <- 200 # number of subjects
+M <- 1000 # number of simulated data sets
+N <- 500 # number of subjects
 Beta <- c(1,-1,0.25)
 
 # delta_t <- 0.05
@@ -94,18 +94,23 @@ auc_lst[[1]] %>% data.frame() %>%
   ggplot(aes(y = value, x = as.numeric(time), group = name, col = name))+
   geom_line()
 
-
-
-##### true AUC #####
 auc_lst <- lapply(auc_lst, as.data.frame)
 auc_df <- bind_rows(auc_lst)
-# to speed up, binned time to fewer points
-brk <- seq(0, 1, 0.01)
-auc_df$time_bin <- cut(auc_df$time, breaks = brk, include.lowest = T,
-                       seq(0.005, 0.995, 0.01))
-auc_df$time_bin <- as.numeric(as.character(auc_df$time_bin))
 
-tind <- unique(auc_df$time_bin)
+##### true AUC and concordance #####
+# do not run this section
+# instead load saved data 
+# unless some part of it is updated
+
+# to speed up, binned time to fewer points
+# brk <- seq(0, 1, 0.01)
+# auc_df$time_bin <- cut(auc_df$time, breaks = brk, include.lowest = T,
+#                        seq(0.005, 0.995, 0.01))
+# auc_df$time_bin <- as.numeric(as.character(auc_df$time_bin))
+
+# tind <- unique(auc_df$time_bin)
+range(auc_df$time)
+tind <- seq(0, 1, length.out = 500)
 etaind <- seq(-5, 5, length.out = 100)
 true_auc <- rep(NA, length(tind))
 
@@ -141,27 +146,17 @@ for(i in seq_along(tind)){
 }
 
 # brief look at true auc
-true_auc <- data.frame(time_bin = tind, estimator = "true", auc = true_auc)
-plot(true_auc$time_bin, true_auc$auc) # one unexpected outlier? # time bin = 0.135 and 0.145
-true_auc %>% arrange(time_bin)
+# true_auc <- data.frame(time_bin = tind, estimator = "true", auc = true_auc)
+plot(tind, true_auc) # one unexpected outlier? # time bin = 0.135 and 0.145
+# true_auc %>% arrange(time_bin)
 
-# use linear interpolation for other times
-interpolated_auc<-approx(x = true_auc$time_bin, y = true_auc$auc, xout = auc_df$time)$y
-plot(auc_df$time, interpolated_auc)
-auc_df$true <- interpolated_auc
-
-# abnormal value when t = 0.145 and eta = 1.7676677
-
-##### true concordance #####
+# true concordance
 ## didn't include the interpolated AUC
 ## because they are techniqually estimated
-true_auc_sort <- true_auc %>%
-  mutate(time_bin = as.numeric(time_bin)) %>%
-  arrange(time_bin)
+true_auc_sort <- data.frame(time_bin = tind, auc = true_auc)
 
 ## shall we use marginal survival function by intergrating out eta?
 ## marginal S(t)
-tind <- true_auc_sort$time_bin
 sig_eta <- sqrt(sum(Beta^2))
 true_marg_st <- rep(NA, length(tind))
 for(i in seq_along(true_marg_st)){
@@ -183,31 +178,32 @@ plot(tind, true_marg_ft)
 
 ## use trapezoidal rule to approximate integral
 ## use truncated version for weights
-
-
 w_vec <- 2 * true_marg_ft * true_marg_st
 w_vec <- w_vec/(1-true_marg_st[which.max(tind)]^2)
 y_vec <- w_vec*true_auc_sort$auc
 
 plot(tind, w_vec)
 plot(tind, y_vec)
-  
+
 nt <- nrow(true_auc_sort)
 width <- diff(true_auc_sort$time_bin)
 height <- y_vec[1:nt-1]+y_vec[2:nt]
 true_c <- sum(width*height/2, na.rm = T)
 
-####  prep for plot AUC #####
+save(true_auc_sort, true_c, true_marg_ft, true_marg_ft, file = here("outputData/true_values.RData"))
 
-auc_df_mean <- auc_df %>% 
-  dplyr::select(time_bin, HZ, empirical, sm_empirical) %>%
-  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
-  group_by(estimator, time_bin) %>% 
-  summarize_at("auc", mean)
 
-auc_df_mean <- rbind(auc_df_mean, true_auc)
+####  export data #####
 
-##### plot concordance #####
+# auc_df_mean <- auc_df %>% 
+#   dplyr::select(time_bin, HZ, empirical, sm_empirical) %>%
+#   pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
+#   group_by(estimator, time_bin) %>% 
+#   summarize_at("auc", mean)
+# 
+# auc_df_mean <- rbind(auc_df_mean, true_auc)'
+
+
 c_df <- bind_rows(lapply(c_lst, as.data.frame))
 c_df <- c_df %>% pivot_longer(1:7, names_to = "estimator", values_to = "concordance")
 c_df$estimator <- factor(c_df$estimator, 
@@ -222,6 +218,5 @@ c_df$estimator <- factor(c_df$estimator,
 #   geom_hline(yintercept = true_c)
 
 
-##### export simulation results #####
-save(auc_df, auc_df_mean, true_auc, file = here("outputData/auc.RData"))
-save(c_df, true_c, file = here("outputData/concordance.RData"))
+save(auc_df, c_df, file = here("outputData/estimated_values.RData"))
+

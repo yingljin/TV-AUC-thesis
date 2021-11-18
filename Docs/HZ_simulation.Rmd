@@ -1,7 +1,6 @@
 ---
 title: "TV-auc simulation"
 author: "Ying Jin"
-date: "8/18/2021"
 output: 
   html_document:
      number_sections: yes
@@ -20,15 +19,21 @@ library(ggplot2)
 
 # Time-Varying AUC
 ```{r}
-load(here("outputData/auc.RData"))
-load(here("outputData/concordance.RData"))
+load(here("outputData/true_values.RData"))
+load(here("outputData/estimated_values.RData"))
 ```
-
 
 ## Simulation results
 
 ```{r}
-auc_df %>% dplyr::select(-time_bin) %>%
+# use interpolation to estimate true_auc
+interpolated_auc<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, xout = auc_df$time)$y
+plot(auc_df$time, interpolated_auc)
+auc_df$true <- interpolated_auc
+```
+
+```{r}
+auc_df %>% 
   pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, col = estimator))+
   geom_line(alpha = 0.5)+
@@ -36,7 +41,7 @@ auc_df %>% dplyr::select(-time_bin) %>%
 ```
 
 ```{r}
-auc_df %>% dplyr::select(-time_bin) %>%
+auc_df %>% 
   pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
   geom_smooth(se = F)+
@@ -44,13 +49,17 @@ auc_df %>% dplyr::select(-time_bin) %>%
 ```
 
 ```{r}
-auc_df%>%
+brk <- seq(0, 1, 0.01)
+auc_df %>%
+  mutate(time_bin = cut(auc_df$time, breaks = brk, include.lowest = T,
+                       seq(0.005, 0.995, 0.01))) %>%
+  dplyr::select(-true) %>%
   pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = factor(time_bin), y = auc))+
-  geom_boxplot()+
+  geom_boxplot(outlier.size = 0.5)+
   facet_wrap(~estimator, nrow = 3, ncol = 1)+
   labs(x = "",)+
-  theme(axis.ticks.x = element_blank(), axis.text.x = element_blank())
+  scale_x_discrete(breaks = c("0.005", "0.495", "0.995"))
 ```
 
 ## Concordance
@@ -62,33 +71,6 @@ c_df %>%  ggplot(aes(x = estimator, y = concordance))+
   geom_hline(yintercept = true_c, col = "red")+
   labs(title = "Concordance")
 ```
-
-# Questions
-
-1. Restricting both eta and t when calculating true sensitivity and specificity?
-- doing that kinda speed the simulation up
-2. Technically, time cannot be greater than 1
-
-$$t_c = min\{1, rexp(1/5)\} \leq 1$$
-
-$$t = min\{t_e, t_c\}\leq t_c \leq 1$$
-but if I restrict time to 1 when calculating specificity, the true AUC ended up very low.Is it because when we are trying to calculate true AUC, we assume a distribution of t that takes value $(0, \infty)$, and did not consider the distribution of censoring time? 
-
-- Yes. Also if censor time is independent of event time, the math formula would stay the same.
-
-3. Estimating survival function and density for concordance
-- marginal: integrating out linear predictor($\eta$)
-- use the trucated version of concordance in HZ paper, where weight is devided by its intergral
-(also 1-max(S_t)^2)
-
-4. For true AUC:
-
-- Calculate in the same way but on a denser interval
-- Use linear interpolation to evaluated it at all the generated event time (funciton approx)
-- So we don't have to bin/smooth estimated AUC anymore
-
-5. Try to expand iteration and sample size. Identify where it takes most time
-
 
 # Notes
 
@@ -115,7 +97,7 @@ Heagerty & Zheng
 
 - Gonen & Heller3
 
-- Harell’s 
+- Harell’s C-index: fully empirical
 
 # Extensions
 
