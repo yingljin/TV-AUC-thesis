@@ -86,14 +86,6 @@ for(iter in 1:M){
   setTxtProgressBar(pb, value=iter)
 }
 
-
-
-# plot 1 iter
-auc_lst[[1]] %>% data.frame() %>%
-  pivot_longer(cols = 2:4) %>%
-  ggplot(aes(y = value, x = as.numeric(time), group = name, col = name))+
-  geom_line()
-
 auc_lst <- lapply(auc_lst, as.data.frame)
 auc_df <- bind_rows(auc_lst)
 
@@ -106,6 +98,7 @@ c_df$estimator <- factor(c_df$estimator,
                                     "sm_empirical_HZ", "sm_empirical_SmS"))
 
 save(auc_df, c_df, file = here("outputData/estimated_values.RData"))
+save(auc_lst, file = here("outputData/results_by_iter.RData"))
 
 ##### true AUC and concordance #####
 # do not run this section

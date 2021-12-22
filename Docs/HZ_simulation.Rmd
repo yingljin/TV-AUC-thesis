@@ -21,6 +21,14 @@ library(ggplot2)
 ```{r}
 load(here("outputData/true_values.RData"))
 load(here("outputData/estimated_values.RData"))
+load(here("outputData/weighted_gam_by_iter.RData"))
+```
+
+```{r}
+weighted_df <- bind_rows(auc_lst, .id = "iter") %>%
+  select(time, sm_empirical_wt)
+
+auc_df <- auc_df %>% left_join(weighted_df, by = "time")
 ```
 
 ## Simulation results
@@ -28,13 +36,13 @@ load(here("outputData/estimated_values.RData"))
 ```{r}
 # use interpolation to estimate true_auc
 interpolated_auc<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, xout = auc_df$time)$y
-plot(auc_df$time, interpolated_auc)
+# plot(auc_df$time, interpolated_auc)
 auc_df$true <- interpolated_auc
 ```
 
 ```{r}
 auc_df %>% 
-  pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
+  pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, col = estimator))+
   geom_line(alpha = 0.5)+
   labs(title = "True time-varying AUC")
@@ -42,7 +50,7 @@ auc_df %>%
 
 ```{r}
 auc_df %>% 
-  pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
+  pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
   geom_smooth(se = F)+
   labs(title = "Smoothed time-varying AUC")
@@ -54,10 +62,10 @@ auc_df %>%
   mutate(time_bin = cut(auc_df$time, breaks = brk, include.lowest = T,
                        seq(0.005, 0.995, 0.01))) %>%
   dplyr::select(-true) %>%
-  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
+  pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = factor(time_bin), y = auc))+
   geom_boxplot(outlier.size = 0.5)+
-  facet_wrap(~estimator, nrow = 3, ncol = 1)+
+  facet_wrap(~estimator, nrow = 4, ncol = 1)+
   labs(x = "",)+
   scale_x_discrete(breaks = c("0.005", "0.495", "0.995"))
 ```
@@ -72,10 +80,17 @@ c_df %>%  ggplot(aes(x = estimator, y = concordance))+
   labs(title = "Concordance")
 ```
 
+# Bias of smoothed empirical estimator
+
+```{r}
+
+```
+
 # Notes
 
 1. For smoothed empirical estimator, maybe try inverse variance weighted gam?
    - calculated individual variance for each observation (time point in this case)
+   - but could it be the outcome (empirical extimator) is highly skewed?
    
 2. Investigate the weird outliers of smoothed empirical estimator
 

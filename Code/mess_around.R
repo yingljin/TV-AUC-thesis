@@ -1,53 +1,62 @@
-library(MASS)
-library(risksetROC)
-library(survival)
+#### plot residual ####
+auc_lst[[1]]
 
-
-
-# investigaete abnormal value of true auc when when t = 0.145 and eta = 1.76767677
-t_i <- 0.145
-# t_i <- 0.155
-etaind <- seq(-7, 7, length.out = 100)
-sens <- rep(NA, length(etaind))
-spec <- rep(NA, length(etaind))
-for(j in seq_along(etaind)){
-  eta_ij <- etaind[j]
-  
-  sens[j] <- adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(eta_ij), upperLimit=c(500), lambda=2, p=2, sigma_eta=sqrt(sum(Beta^2)))$integral/
-    adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(-Inf), upperLimit=c(500), lambda=2, p=2, sigma_eta=sqrt(sum(Beta^2)))$integral
-  
-  spec[j] <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(eta_ij, Inf), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral/
-    adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(Inf, Inf), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral
+par(mfrow = c(3, 3))
+mtext("Residual vs Fitted for regular GAM", outer = TRUE)
+for(i in 1:9){
+  df <- as.data.frame(auc_lst[[i]])
+  sm_fit <- gam(empirical ~ s(time, k = 30), data = df)
+  pred <- predict(sm_fit, type = "response", se.fit = T)
+  plot(pred$fit, sm_fit$residuals, cex = 0.5, pch = 20)
+  abline(h = 0)
 }
 
-plot(etaind, sens)
-plot(etaind, spec)
+i <- 1
 
-# weird specificity when eta = 1.77
-eta_ij <- 1.76767677
-# eta_ij <- 1.62626263
-# eta_ij <- 1.90909091
+##### random code #####
 
-## specificity
-num2 <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(eta_ij, Inf), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))
-dem2 <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(Inf, Inf), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))
+auc_lst[2:10] %>%
+  bind_rows(.id = "iter") %>%
+  mutate(true = approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, xout = time)$y) %>%
+  pivot_longer(3:6, names_to = "estimator", values_to = "AUC") %>%
+  filter(estimator != "empirical") %>%
+  ggplot(aes(x = time, y = AUC, group = estimator, col = estimator))+
+  geom_line()+
+  facet_wrap(~iter)
 
-num2$integral/dem2$integral # 1.013>1
 
-## function to calculate specificity
-## x is actually a vector(eta, t)
-my_fn_spec <- function(x, lambda=1, p=1, mn_eta=0, sigma_eta=2){
-  lambda*p*x[2]^(p-1)*exp(x[1])*exp(-lambda*x[2]^p*exp(x[1]))*dnorm(x[1], mean=mn_eta, sd=sigma_eta)
+for(i in 2:10){
+  df <- auc_lst[[i]]
+  df$empirical<-(1-df$empirical)^(1/3)
+  sm_fit1 <- gam(empirical ~ s(time, k = 30), data = df)
+  pred_y <- predict(sm_fit1, type = "response", se.fit = F)
+  pred_y <- 1-pred_y^3
+  auc_lst[[i]]$sm_empirical_trans <- pred_y
 }
 
-## fix t
-eta_vec <- seq(min(etaind), eta_ij, length.out = 1000)
-df <- cbind(eta_vec, t_i)
-spec_vec <- apply(df, 1, my_fn_spec, lambda = 2, p = 2, sigma_eta = sqrt(sum(Beta^2)))
-plot(eta_vec, spec_vec)
+plot(predict(sm_fit1), sm_fit1$residuals)
+hist(sm_fit1$residuals)
+hist((1-auc_lst[[1]]$empirical)^(1/3))
+hist(auc_lst[[100]]$empirical)
 
-## fix eta
-t_vec <- seq(t_i, max(tind), length.out = 1000)
-df <- cbind(eta_ij, t_vec)
-spec_vec <- apply(df, 1, my_fn_spec, lambda = 2, p = 2, sigma_eta = sqrt(sum(Beta^2)))
-plot(t_vec, spec_vec)
+head(auc_lst[[i]])
+
+auc_lst[2:10] %>%
+  bind_rows(.id = "iter") %>%
+  mutate(true = approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, xout = time)$y)%>%
+  pivot_longer(3:8, names_to = "estimator", values_to = "AUC") %>%
+  filter(estimator %in% c("sm_empirical", "sm_empirical_trans", "true")) %>%
+  ggplot(aes(x = time, y = AUC, group = estimator, col = estimator))+
+  geom_line()+
+  facet_wrap(~iter)
+
+auc_lst[2:10] %>%
+  bind_rows(.id = "iter") %>%
+  mutate(true = approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, xout = time)$y) %>%
+  mutate(bias_hz = HZ-true,
+         bias_sm_em = sm_empirical-true,
+         bias_sm_em_weight = sm_empirical_weighted-true) %>%
+  dplyr::select(iter, time, bias_hz, bias_sm_em, bias_sm_em_weight) %>%
+  pivot_longer(3:5, names_to = "estimator", values_to = "bias") %>%
+  ggplot(aes(x=time, y=bias, group = estimator, col = estimator))+
+  geom_point()
