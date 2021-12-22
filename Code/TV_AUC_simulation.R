@@ -7,6 +7,7 @@ library(here)
 library(risksetROC)
 library(mgcv)
 library(scam)
+library("clinfun")
 # set the seed
 set.seed(102131)
 
@@ -45,8 +46,8 @@ for(iter in 1:M){
   colnames(auc_mat) <- c("time", "HZ", "empirical", "sm_empirical")
   auc_mat[, "time"] <- t_vec    
   
-  c_mat <- matrix(NA, nrow = 1, ncol = 7)
-  colnames(c_mat) <- c("empirical", "HZ_HZ", "empirical_HZ", "sm_empirical_HZ",
+  c_mat <- matrix(NA, nrow = 1, ncol = 8)
+  colnames(c_mat) <- c("empirical", "GH", "HZ_HZ", "empirical_HZ", "sm_empirical_HZ",
                        "HZ_SmS", "empirical_SmS", "sm_empirical_SmS")
   
   # calculate HZ and empirical time_varying AUC
@@ -68,8 +69,8 @@ for(iter in 1:M){
   
   # concordance
   ## First, estimate survival probability from Kaplan Meier curve 
-  KM_est <- survfit(Surv(time,event)~1, timefix=FALSE,data=data)
-  KM_est <- KM_est$surv[KM_est$n.event>0]
+  KM_fit <- survfit(Surv(time,event)~1, timefix=FALSE,data=data)
+  KM_est <- KM_fit$surv[KM_fit$n.event>0]
   
   auc_sort <-arrange(data.frame(auc_mat), time)
   ## HZ and smS concordance
@@ -79,7 +80,11 @@ for(iter in 1:M){
   c_mat[, "HZ_SmS"] <- intAUC(auc_sort$HZ, auc_sort$time, KM_est, method = "smS")
   c_mat[, "empirical_SmS"] <- intAUC(auc_sort$empirical, auc_sort$time, KM_est, method = "smS")
   c_mat[, "sm_empirical_SmS"] <- intAUC(auc_sort$sm_empirical, auc_sort$time, KM_est, method = "smS")
+  ## Harrels C-index
   c_mat[, "empirical"] <- calc_c(data$eta, data$time, data$event)
+  ## Gonen-Heller
+  cox_fit <- coxph(Surv(time,event)~eta, data=data)
+  c_mat[, "GH"] <- coxphCPE(cox_fit)["CPE"]
   
   c_lst[[iter]] <- c_mat 
   
@@ -93,7 +98,7 @@ auc_df <- bind_rows(auc_lst)
 c_df <- bind_rows(lapply(c_lst, as.data.frame))
 c_df <- c_df %>% pivot_longer(1:7, names_to = "estimator", values_to = "concordance")
 c_df$estimator <- factor(c_df$estimator, 
-                         levels = c("empirical", "HZ_HZ", "HZ_SmS",
+                         levels = c("empirical", "GH", "HZ_HZ", "HZ_SmS",
                                     "empirical_HZ", "empirical_SmS",
                                     "sm_empirical_HZ", "sm_empirical_SmS"))
 

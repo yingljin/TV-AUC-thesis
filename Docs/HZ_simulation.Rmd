@@ -25,10 +25,7 @@ load(here("outputData/weighted_gam_by_iter.RData"))
 ```
 
 ```{r}
-weighted_df <- bind_rows(auc_lst, .id = "iter") %>%
-  select(time, sm_empirical_wt)
-
-auc_df <- auc_df %>% left_join(weighted_df, by = "time")
+auc_df <- auc_df %>% left_join(wt_gam_df, by = "time")
 ```
 
 ## Simulation results
@@ -82,9 +79,6 @@ c_df %>%  ggplot(aes(x = estimator, y = concordance))+
 
 # Bias of smoothed empirical estimator
 
-```{r}
-
-```
 
 # Notes
 
