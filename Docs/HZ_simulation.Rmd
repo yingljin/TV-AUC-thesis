@@ -17,7 +17,94 @@ library(tidyverse)
 library(ggplot2)
 ```
 
-# Time-Varying AUC
+
+# Introduction
+
+- AUC and measures of discrimination are important model evaluation criteria for survival models.
+- Many estimators proposed, some work done examining the problem with violations of the PH assumption
+- No previous work identified critical flaw which affects reasonableness of these estimators’ use in prediction work
+- We are trying to identifying key flaw in common estimators of I/D AUC and their impact on Concordance
+- Proposal for which estimators to use in the future for prediction work
+
+# Method
+
+## Incidence/Dynamic AUC
+
+For a fixed time point $t > 0$ at various candidate thresholds of the biomarker $\eta_i$. Specifically,  
+$$\begin{align*}
+    \text{sensitivity}^{\mathbb{I}}(c,t) = & \text{TP}_t^{\mathbb{I}}(c) = \text{Pr}(\eta_i > c|T_i = t) \\
+    1-\text{specificity}^{\mathbb{D}}(c,t) = & \text{FP}_t^{\mathbb{D}}(c) = 1-\text{Pr}(\eta_i \leq c|T_i > t) \\
+\end{align*}$$
+
+from which one can defined an incident/dynamic receiver operator characteristic (ROC) curve
+
+$$\begin{align*}
+    \text{ROC}_t^{\mathbb{I}/\mathbb{D}}(p) =  \text{TP}_t^{\mathbb{I}}\{[\text{FP}_t^{\mathbb{D}}]^{-1}(p)\}
+\end{align*}$$
+
+Consequently I/D AUC:
+
+$$\begin{align*}
+    \text{AUC}^{\mathbb{I}/\mathbb{D}}(t) &= \int_0^1 \text{ROC}_t^{\mathbb{I}/\mathbb{D}}(p)dp
+\end{align*}$$
+
+### Hagerty & Zhang estimator (semi-parametric)
+
+From the Heagerty & Zhang paper, sensitivity and specificity is estimated based on cox PH model:
+
+$$\begin{align*}
+    \log \lambda_i(t) &= \log \lambda_0(t) + \bf{x}_i \bf{\beta} \\
+    &= \log \lambda_0(t) + \eta_i \\
+\end{align*}$$
+
+$$\hat{\text{TP}_t}^{\mathbb{I}}(c)=\frac{\sum_{k}I(\eta_k>c)I(T_k=t)exp(\eta_t)}{\sum_{j}I(T_j=t)exp(\eta_j)}$$
+
+$$\text{FP}_t^{\mathbb{D}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k>t)}{\sum_{j}I(T_j>t)}$$
+
+ROC and $AUC(t)$ estimated as the previous section by plugging in estimators of TP and FP. AUC is only evaluated as unique event time. 
+
+### Fully non-parametric
+
+$$\hat{\text{TP}_t}^{\mathbb{I}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k=t)}{\sum_{j}I(T_j=t)}$$
+$$\hat{\text{FP}_t}^{\mathbb{D}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k>t)}{\sum_{j}I(T_j>t)}$$
+
+ROC(t), AUC(t) estimated using the same formula as previous sections
+
+Since non-parametric AUC(t) is highly unstable, we can also smoothing it using regression splines.
+
+## Concordance
+
+### Integrating AUC(t)
+
+$$\begin{align*}
+\text{C}^{\tau} &= \int_0^\tau\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)w^{\tau(t)}dt
+\end{align*}$$
+
+Where $\tau$ is the end of follow-up period, 
+
+$$w^{\tau}(t) = 2f(t)S(t)/W^{\tau}$$
+
+$$W^{\tau} =\int_0^\tau2f(t)S(t)dt =1-S^2(\tau)$$
+S(t) can be estimated from Kaplan-Meier curve. f(t) can be calculated using Trapezoidal rule over S(t) or smoothed S(t).
+
+### Gonen & Heller
+
+$$C = \frac{2}{n(n-1)}\sum_{i<j}{\frac{I(\eta_j-\eta_i<0)}{1+exp(\eta_j-\eta_i)}+\frac{I(\eta_i-\eta_j<0)}{1+exp(\eta_i-\eta_j)}}$$
+
+### Harrel's C-index
+
+$$C = \frac{\sum_{i<j}I(T_i<T_j)I(\eta_i>\eta_j)I(\delta_i=1)+I(T_i>T_j)I(\eta_i<\eta_j)I(\delta_i=1)}{\sum_{i<j}I(T_i<T_j)I(\delta_i=1)+I(T_i>T_j)I(\delta_i=1)}$$
+
+
+## Simulation set up
+
+- 1000 iterations, sample size = 500
+- Signals $X = (X_1, X_2, X_3)$, $X_i \overset{i.i.d}{\sim} N(0, 1)$, $\eta = \beta X$, $\beta = (1, -1, 0.25)$
+- Event time generated from Weibull baseline hazard
+- Censor time generated from exponential distribution, with maximum censor time $\tau = 1$
+
+## Preliminary results
+
 ```{r}
 load(here("outputData/true_values.RData"))
 load(here("outputData/estimated_values.RData"))
@@ -28,7 +115,6 @@ load(here("outputData/weighted_gam_by_iter.RData"))
 auc_df <- auc_df %>% left_join(wt_gam_df, by = "time")
 ```
 
-## Simulation results
 
 ```{r}
 # use interpolation to estimate true_auc
@@ -37,7 +123,7 @@ interpolated_auc<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, xout
 auc_df$true <- interpolated_auc
 ```
 
-```{r}
+```{r eval=FALSE}
 auc_df %>% 
   pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, col = estimator))+
@@ -49,7 +135,7 @@ auc_df %>%
 auc_df %>% 
   pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
-  geom_smooth(se = F)+
+  geom_smooth(se = F, formula = y~s(x, bs = "cs"), na.rm = T, method = "gam")+
   labs(title = "Smoothed time-varying AUC")
 ```
 
@@ -63,11 +149,10 @@ auc_df %>%
   ggplot(aes(x = factor(time_bin), y = auc))+
   geom_boxplot(outlier.size = 0.5)+
   facet_wrap(~estimator, nrow = 4, ncol = 1)+
-  labs(x = "",)+
+  labs(x = "", title = "Distribution of estimated AUC")+
   scale_x_discrete(breaks = c("0.005", "0.495", "0.995"))
 ```
 
-## Concordance
 
 ```{r}
 c_df %>%  ggplot(aes(x = estimator, y = concordance))+
@@ -77,45 +162,7 @@ c_df %>%  ggplot(aes(x = estimator, y = concordance))+
   labs(title = "Concordance")
 ```
 
-# Bias of smoothed empirical estimator
 
-
-# Notes
-
-1. For smoothed empirical estimator, maybe try inverse variance weighted gam?
-   - calculated individual variance for each observation (time point in this case)
-   - but could it be the outcome (empirical extimator) is highly skewed?
-   
-2. Investigate the weird outliers of smoothed empirical estimator
-
-3. Add Gonen & Heller estimator for concordance
-   - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4886856/
-
-4. Add model with noise signals
-
-   
-   
-## TV-AUC
-- Unsmoothed non-parametric
-- Smoothed parametric
-
-## Concordance
-
-- Integrated I/D AUC:
-Fully non-parametric I/D AUC (unsmoothed)
-Fully non-parametric I/D AUC (smoothed)
-Heagerty & Zheng
-
-- Gonen & Heller3
-
-- Harell’s C-index: fully empirical
-
-# Extensions
-
-## Cumulative/Dynamic estimator
-
-## Complex survey Design
-- Clustered sampling scheme
 
 
 

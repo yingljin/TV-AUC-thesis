@@ -96,7 +96,7 @@ auc_df <- bind_rows(auc_lst)
 
 ## concordance
 c_df <- bind_rows(lapply(c_lst, as.data.frame))
-c_df <- c_df %>% pivot_longer(1:7, names_to = "estimator", values_to = "concordance")
+c_df <- c_df %>% pivot_longer(1:8, names_to = "estimator", values_to = "concordance")
 c_df$estimator <- factor(c_df$estimator, 
                          levels = c("empirical", "GH", "HZ_HZ", "HZ_SmS",
                                     "empirical_HZ", "empirical_SmS",
