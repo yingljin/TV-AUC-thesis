@@ -24,19 +24,19 @@ library(ggplot2)
 - Many estimators proposed, some work done examining the problem with violations of the PH assumption
 - No previous work identified critical flaw which affects reasonableness of these estimators’ use in prediction work
 - We are trying to identifying key flaw in common estimators of I/D AUC and their impact on Concordance
-- Proposal for which estimators to use in the future for prediction work
+- also propose which estimators to use in the future for prediction work
 
 # Method
 
 ## Incidence/Dynamic AUC
 
-For a fixed time point $t > 0$ at various candidate thresholds of the biomarker $\eta_i$. Specifically,  
+For a fixed time point $t > 0$ at various candidate thresholds $c$ of the biomarker $\eta_i$, define:  
 $$\begin{align*}
     \text{sensitivity}^{\mathbb{I}}(c,t) = & \text{TP}_t^{\mathbb{I}}(c) = \text{Pr}(\eta_i > c|T_i = t) \\
     1-\text{specificity}^{\mathbb{D}}(c,t) = & \text{FP}_t^{\mathbb{D}}(c) = 1-\text{Pr}(\eta_i \leq c|T_i > t) \\
 \end{align*}$$
 
-from which one can defined an incident/dynamic receiver operator characteristic (ROC) curve
+from which one can defined an incident/dynamic receiver operator characteristic (ROC) curve (p denotes a dynamic  value of FP):
 
 $$\begin{align*}
     \text{ROC}_t^{\mathbb{I}/\mathbb{D}}(p) =  \text{TP}_t^{\mathbb{I}}\{[\text{FP}_t^{\mathbb{D}}]^{-1}(p)\}
@@ -57,35 +57,39 @@ $$\begin{align*}
     &= \log \lambda_0(t) + \eta_i \\
 \end{align*}$$
 
+The sensitivity estimator is based on cox coefficients: 
+
 $$\hat{\text{TP}_t}^{\mathbb{I}}(c)=\frac{\sum_{k}I(\eta_k>c)I(T_k=t)exp(\eta_t)}{\sum_{j}I(T_j=t)exp(\eta_j)}$$
+
+But the 1-specificity is non-parametric:
 
 $$\text{FP}_t^{\mathbb{D}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k>t)}{\sum_{j}I(T_j>t)}$$
 
-ROC and $AUC(t)$ estimated as the previous section by plugging in estimators of TP and FP. AUC is only evaluated as unique event time. 
+$ROC(t)$ and $AUC(t)$ estimated using formulas in section 2.1 by plugging in above estimators of TP and FP. $AUC(t)$ is only evaluated as unique event time. 
 
 ### Fully non-parametric
 
 $$\hat{\text{TP}_t}^{\mathbb{I}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k=t)}{\sum_{j}I(T_j=t)}$$
 $$\hat{\text{FP}_t}^{\mathbb{D}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k>t)}{\sum_{j}I(T_j>t)}$$
 
-ROC(t), AUC(t) estimated using the same formula as previous sections
+$ROC(t)$, $AUC(t)$ estimated using the same formula as previous sections
 
-Since non-parametric AUC(t) is highly unstable, we can also smoothing it using regression splines.
+Since non-parametric $AUC(t)$ is highly unstable, we can also smoothing it using **regression splines**.
 
 ## Concordance
 
 ### Integrating AUC(t)
 
 $$\begin{align*}
-\text{C}^{\tau} &= \int_0^\tau\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)w^{\tau(t)}dt
+\text{C} &= \int_0^\tau\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)w^{\tau(t)}dt
 \end{align*}$$
 
-Where $\tau$ is the end of follow-up period, 
+Where $\tau$ is the end of follow-up period, and
 
 $$w^{\tau}(t) = 2f(t)S(t)/W^{\tau}$$
 
 $$W^{\tau} =\int_0^\tau2f(t)S(t)dt =1-S^2(\tau)$$
-S(t) can be estimated from Kaplan-Meier curve. f(t) can be calculated using Trapezoidal rule over S(t) or smoothed S(t).
+$S(t)$ can be estimated from Kaplan-Meier curve. $f(t)$ can be calculated using Trapezoidal rule over $S(t)$ or smoothed $S(t)$.
 
 ### Gonen & Heller
 
@@ -95,11 +99,12 @@ $$C = \frac{2}{n(n-1)}\sum_{i<j}{\frac{I(\eta_j-\eta_i<0)}{1+exp(\eta_j-\eta_i)}
 
 $$C = \frac{\sum_{i<j}I(T_i<T_j)I(\eta_i>\eta_j)I(\delta_i=1)+I(T_i>T_j)I(\eta_i<\eta_j)I(\delta_i=1)}{\sum_{i<j}I(T_i<T_j)I(\delta_i=1)+I(T_i>T_j)I(\delta_i=1)}$$
 
+# Results
 
 ## Simulation set up
 
 - 1000 iterations, sample size = 500
-- Signals $X = (X_1, X_2, X_3)$, $X_i \overset{i.i.d}{\sim} N(0, 1)$, $\eta = \beta X$, $\beta = (1, -1, 0.25)$
+- Signals $X = (X_1, X_2, X_3)$, $X_i \overset{i.i.d}{\sim} N(0, 1)$; true coefficients $\beta = (1, -1, 0.25)$; biomarker $\eta = \beta X$
 - Event time generated from Weibull baseline hazard
 - Censor time generated from exponential distribution, with maximum censor time $\tau = 1$
 
@@ -132,19 +137,32 @@ auc_df %>%
 ```
 
 ```{r}
+colnames(auc_df) <- c("time", "Heagerty-Zhang", "Non-parametric", "Smoothed non-parametric",
+                      "Weighted smoothed non-parametric", "True")
+```
+
+```{r eval=FALSE}
 auc_df %>% 
   pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
-  geom_smooth(se = F, formula = y~s(x, bs = "cs"), na.rm = T, method = "gam")+
+  geom_point(na.rm = T, size = 0.5, alpha = 0.5)+
+  labs(title = "Time-varying AUC")
+```
+
+```{r, fig.height=5, fig.width=10}
+auc_df %>% 
+  pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
+  ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
+  geom_smooth(se = F, formula = y~s(x, bs = "cs"), na.rm = T, method = "gam", size = 0.7)+
   labs(title = "Smoothed time-varying AUC")
 ```
 
-```{r}
+```{r, fig.height=5, fig.width=10}
 brk <- seq(0, 1, 0.01)
 auc_df %>%
   mutate(time_bin = cut(auc_df$time, breaks = brk, include.lowest = T,
                        seq(0.005, 0.995, 0.01))) %>%
-  dplyr::select(-true) %>%
+  dplyr::select(-True) %>%
   pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = factor(time_bin), y = auc))+
   geom_boxplot(outlier.size = 0.5)+
@@ -155,6 +173,13 @@ auc_df %>%
 
 
 ```{r}
+c_df$estimator <- factor(c_df$estimator, levels = levels(c_df$estimator),
+                         labels = c("Harrel's C", "Gonen-Heller", "HZ_S",
+                                    "HZ_SmS",
+                                    "NP_S",
+                                    "NP_SmS",
+                                    "SNP_S",
+                                    "SNP_SmS"))
 c_df %>%  ggplot(aes(x = estimator, y = concordance))+
   geom_boxplot()+
   theme(axis.text.x = element_text(angle = 60, vjust = 0.5))+
@@ -162,7 +187,20 @@ c_df %>%  ggplot(aes(x = estimator, y = concordance))+
   labs(title = "Concordance")
 ```
 
+Note: 
 
+- HZ_S: Heagerty-Zhang estimator of $AUC(t)$ integrated using weights from survival function
+
+- HZ_SmS: Heagerty-Zhang estimator of $AUC(t)$ integrated using weights from smoothed survival function
+
+- NP_S: Non-parametric estimator of $AUC(t)$ integrated using weights from survival function
+
+
+- NP_SmS: Non-parametric estimator of $AUC(t)$ integrated using weights from smoothed survival function
+
+- SNP_S: Smoothed non-parametric estimator of $AUC(t)$ integrated using weights from survival function
+
+- SNP_SmS: Smoothed non-parametric estimator of $AUC(t)$ integrated using weights from smoothed survival function
 
 
 
