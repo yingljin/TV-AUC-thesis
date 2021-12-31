@@ -14,6 +14,37 @@ for(i in 1:9){
 i <- 1
 
 ##### random code #####
+traindf <- as.data.frame(auc_mat_train) %>% arrange(time)
+testdf <- as.data.frame(auc_mat_test) %>% arrange(time)
+
+plot(traindf$time, traindf$HZ_eta1, "l")
+lines(testdf$time, testdf$HZ_eta1, col = "red")
+
+plot(traindf$time, traindf$HZ_eta2, "l")
+lines(testdf$time, testdf$HZ_eta2, col = "red")
+
+plot(traindf$time, traindf$HZ_eta3, "l")
+lines(testdf$time, testdf$HZ_eta3, col = "red")
+
+plot(traindf$time, traindf$empirical_eta1, "l")
+lines(testdf$time, testdf$empirical_eta1, col = "red")
+
+plot(traindf$time, traindf$empirical_eta2, "l")
+lines(testdf$time, testdf$empirical_eta2, col = "red")
+
+plot(traindf$time, traindf$empirical_eta3, "l")
+lines(testdf$time, testdf$empirical_eta3, col = "red")
+
+plot(traindf$time, traindf$sm_empirical_eta1, "l")
+lines(testdf$time, testdf$sm_empirical_eta1, col = "red")
+
+plot(traindf$time, traindf$sm_empirical_eta2, "l")
+lines(testdf$time, testdf$sm_empirical_eta2, col = "red")
+
+plot(traindf$time, traindf$sm_empirical_eta3, "l")
+lines(testdf$time, testdf$sm_empirical_eta3, col = "red")
+
+
 
 auc_lst[2:10] %>%
   bind_rows(.id = "iter") %>%

@@ -21,89 +21,294 @@ M <- 1000 # number of simulated data sets
 N <- 500 # number of subjects
 Beta <- c(1,-1,0.25)
 
+# training sample
+N_obs <- N*0.5
+
 # delta_t <- 0.05
 
 # result container
-auc_lst <- list()
-c_lst <- list()
+auc_lst_train <- list()
+auc_lst_test <- list()
+c_lst_train <- list()
+c_lst_test <- list()
+data_lst <- list()
 
 ##### simulation ####
 pb <- txtProgressBar(min=0, max=M,style=3)
 for(iter in 1:M){
   # generate data
   X  <- matrix(rnorm(N*3), ncol=3, nrow=N)
+  ## add noise signal: 20 or 100, N(0, 1)
+  Z <- matrix(rnorm(N*100), ncol = 100, nrow = N)
   eta <- X %*% Beta
   data <- gen_St(eta=eta,lambda=2, p=2, gen_Ct = function(N) rep(1,N))
+  data$X <- I(X)
+  data$Z <- I(Z)
+  data_lst[[iter]] <- data
+  ## separate out the training and test datasets
+  data_train <- data[1:N_obs,]
+  data_test  <- data[-c(1:N_obs),]
   
-  # get unique t and eta
-  t_vec <- unique(data$time[data$event==1])
-  eta_vec <- unique(data$eta[data$event==1])
-  nt_pred <- length(t_vec)
-  neta_pred <- length(eta_vec)
+  ## fit our 3 models with different number of noise predictors (0, 20, 100)
+  fit_1 <- coxph(Surv(time, event) ~ X, data=data_train)
+  fit_2 <- coxph(Surv(time, event) ~ X + Z[,1:20], data=data_train)
+  fit_3 <- coxph(Surv(time, event) ~ X + Z, data=data_train)
   
-  # results container
-  auc_mat <- matrix(NA, nrow = nt_pred, ncol = 4)
-  colnames(auc_mat) <- c("time", "HZ", "empirical", "sm_empirical")
-  auc_mat[, "time"] <- t_vec    
+  # get estimated \hat\eta_ik for k = 1,2,3 models, unique time and biomarker
+  ## for the training data
+  data_train$eta1 <- fit_1$linear.predictors
+  data_train$eta2 <- fit_2$linear.predictors
+  data_train$eta3 <- fit_3$linear.predictors
+  t_vec_train <- unique(data_train$time[data_train$event==1])
+  eta_vec_train <- unique(data_train$eta[data_train$event==1])
+  nt_pred_train <- length(t_vec_train)
+  neta_pred_train <- length(eta_vec_train)
   
-  c_mat <- matrix(NA, nrow = 1, ncol = 8)
-  colnames(c_mat) <- c("empirical", "GH", "HZ_HZ", "empirical_HZ", "sm_empirical_HZ",
+  ## for the test data
+  data_test$eta1 <- as.vector(data_test$X %*% coef(fit_1))
+  data_test$eta2 <- as.vector(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2))
+  data_test$eta3 <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3))
+  t_vec_test <- unique(data_test$time[data_test$event==1])
+  eta_vec_test <- unique(data_test$eta[data_test$event==1])
+  nt_pred_test <- length(t_vec_test)
+  neta_pred_test <- length(eta_vec_test)
+  
+  # set up results container
+  auc_mat_train <- matrix(NA, nrow = nt_pred_train, ncol = 3*3+1)
+  auc_mat_test <- matrix(NA, nrow = nt_pred_test, ncol = 3*3+1)
+  colnames(auc_mat_train)<-colnames(auc_mat_test) <- c("time", "HZ_eta1", "HZ_eta2", "HZ_eta3", 
+                         "empirical_eta1", "empirical_eta2", "empirical_eta3",
+                         "sm_empirical_eta1", "sm_empirical_eta2", "sm_empirical_eta3")
+  auc_mat_train[, "time"] <- t_vec_train    
+  auc_mat_test[, "time"] <- t_vec_test   
+  
+  c_mat_train <- matrix(NA, nrow = 3, ncol = 8)
+  c_mat_test <- matrix(NA, nrow = 3, ncol = 8)
+  colnames(c_mat_train)<-colnames(c_mat_test) <- c("empirical", "GH", "HZ_HZ", "empirical_HZ", "sm_empirical_HZ",
                        "HZ_SmS", "empirical_SmS", "sm_empirical_SmS")
+  rownames(c_mat_train)<-rownames(c_mat_test)  <- c("eta1", "eta2", "eta3")
   
-  # calculate HZ and empirical time_varying AUC
-  for(i in seq_along(t_vec)){
-    t_i <- t_vec[i]
+  # calculate in sample HZ and empirical time_varying AUC
+  for(i in seq_along(t_vec_train)){
+    t_i <- t_vec_train[i]
     # HZ
-    auc_mat[i, "HZ"] <- CoxWeights(marker = data$eta, Stime = data$time, status = data$event,
+    auc_mat_train[i, "HZ_eta1"] <- CoxWeights(marker = data_train$eta1, 
+                                              Stime = data_train$time, status = data_train$event,
                                       predict.time = t_i, entry = NULL)$AUC
+    auc_mat_train[i, "HZ_eta2"] <- CoxWeights(marker = data_train$eta2, 
+                                              Stime = data_train$time, status = data_train$event,
+                                              predict.time = t_i, entry = NULL)$AUC
+    auc_mat_train[i, "HZ_eta3"] <- CoxWeights(marker = data_train$eta3, 
+                                              Stime = data_train$time, status = data_train$event,
+                                              predict.time = t_i, entry = NULL)$AUC
     # trying to get non-parametric estimator
-    auc_mat[i, "empirical"] <- ID_AUC(marker = data$eta, Stime = data$time, status = data$event,
+    auc_mat_train[i, "empirical_eta1"] <- ID_AUC(marker = data_train$eta1, 
+                                           Stime = data_train$time, status = data_train$event,
                                   predict.time = t_i,  entry = NULL)
+    auc_mat_train[i, "empirical_eta2"] <- ID_AUC(marker = data_train$eta2, 
+                                                 Stime = data_train$time, status = data_train$event,
+                                                 predict.time = t_i,  entry = NULL)
+    auc_mat_train[i, "empirical_eta3"] <- ID_AUC(marker = data_train$eta3, 
+                                                 Stime = data_train$time, status = data_train$event,
+                                                 predict.time = t_i,  entry = NULL)
   }
   # smoothed empirical AUC
-  sm_fit <- gam(empirical ~ s(time, k = 30), data = as.data.frame(auc_mat))
-  auc_mat[, "sm_empirical"] <- predict(sm_fit)
+  sm_fit1_train <- gam(empirical_eta1 ~ s(time, k = 30, bs = "cr"), method = "REML", 
+                 data = as.data.frame(auc_mat_train))
+  sm_fit2_train <- gam(empirical_eta2 ~ s(time, k = 30, bs = "cr"), method = "REML", 
+                       data = as.data.frame(auc_mat_train))
+  sm_fit3_train <- gam(empirical_eta3 ~ s(time, k = 30, bs = "cr"), method = "REML", 
+                       data = as.data.frame(auc_mat_train))
   
-  # add to final results
-  auc_lst[[iter]] <- auc_mat
+  auc_mat_train[, "sm_empirical_eta1"] <- predict(sm_fit1_train)
+  auc_mat_train[, "sm_empirical_eta2"] <- predict(sm_fit2_train)
+  auc_mat_train[, "sm_empirical_eta3"] <- predict(sm_fit3_train)
+  
+  # calculate out-of-sample HZ and empirical time_varying AUC
+  for(i in seq_along(t_vec_test)){
+    t_i <- t_vec_test[i]
+    # HZ
+    auc_mat_test[i, "HZ_eta1"] <- CoxWeights(marker = data_test$eta1, 
+                                              Stime = data_test$time, status = data_test$event,
+                                              predict.time = t_i, entry = NULL)$AUC
+    auc_mat_test[i, "HZ_eta2"] <- CoxWeights(marker = data_test$eta2, 
+                                              Stime = data_test$time, status = data_test$event,
+                                              predict.time = t_i, entry = NULL)$AUC
+    auc_mat_test[i, "HZ_eta3"] <- CoxWeights(marker = data_test$eta3, 
+                                              Stime = data_test$time, status = data_test$event,
+                                              predict.time = t_i, entry = NULL)$AUC
+    # trying to get non-parametric estimator
+    auc_mat_test[i, "empirical_eta1"] <- ID_AUC(marker = data_test$eta1, 
+                                                 Stime = data_test$time, status = data_test$event,
+                                                 predict.time = t_i,  entry = NULL)
+    auc_mat_test[i, "empirical_eta2"] <- ID_AUC(marker = data_test$eta2, 
+                                                 Stime = data_test$time, status = data_test$event,
+                                                 predict.time = t_i,  entry = NULL)
+    auc_mat_test[i, "empirical_eta3"] <- ID_AUC(marker = data_test$eta3, 
+                                                 Stime = data_test$time, status = data_test$event,
+                                                 predict.time = t_i,  entry = NULL)
+  }
+  # smoothed empirical AUC
+  sm_fit1_test <- gam(empirical_eta1 ~ s(time, k = 30, bs = "cr"), method = "REML", 
+                       data = as.data.frame(auc_mat_test))
+  sm_fit2_test <- gam(empirical_eta2 ~ s(time, k = 30, bs = "cr"), method = "REML", 
+                       data = as.data.frame(auc_mat_test))
+  sm_fit3_test <- gam(empirical_eta3 ~ s(time, k = 30, bs = "cr"), method = "REML", 
+                       data = as.data.frame(auc_mat_test))
+  
+  auc_mat_test[, "sm_empirical_eta1"] <- predict(sm_fit1_test)
+  auc_mat_test[, "sm_empirical_eta2"] <- predict(sm_fit2_test)
+  auc_mat_test[, "sm_empirical_eta3"] <- predict(sm_fit3_test)
   
   # concordance
   ## First, estimate survival probability from Kaplan Meier curve 
-  KM_fit <- survfit(Surv(time,event)~1, timefix=FALSE,data=data)
-  KM_est <- KM_fit$surv[KM_fit$n.event>0]
+  KM_fit_train <- survfit(Surv(time,event)~1, timefix=FALSE,data=data_train)
+  KM_est_train <- KM_fit_train$surv[KM_fit_train$n.event>0]
+  KM_fit_test <- survfit(Surv(time,event)~1, timefix=FALSE,data=data_test)
+  KM_est_test <- KM_fit_test$surv[KM_fit_test$n.event>0]
   
-  auc_sort <-arrange(data.frame(auc_mat), time)
-  ## HZ and smS concordance
-  c_mat[, "HZ_HZ"] <- intAUC(auc_sort$HZ, auc_sort$time, KM_est, method = "HZ")
-  c_mat[, "empirical_HZ"] <- intAUC(auc_sort$empirical, auc_sort$time, KM_est, method = "HZ")
-  c_mat[, "sm_empirical_HZ"] <- intAUC(auc_sort$sm_empirical, auc_sort$time, KM_est, method = "HZ")
-  c_mat[, "HZ_SmS"] <- intAUC(auc_sort$HZ, auc_sort$time, KM_est, method = "smS")
-  c_mat[, "empirical_SmS"] <- intAUC(auc_sort$empirical, auc_sort$time, KM_est, method = "smS")
-  c_mat[, "sm_empirical_SmS"] <- intAUC(auc_sort$sm_empirical, auc_sort$time, KM_est, method = "smS")
-  ## Harrels C-index
-  c_mat[, "empirical"] <- calc_c(data$eta, data$time, data$event)
-  ## Gonen-Heller
-  cox_fit <- coxph(Surv(time,event)~eta, data=data)
-  c_mat[, "GH"] <- coxphCPE(cox_fit)["CPE"]
   
-  c_lst[[iter]] <- c_mat 
+  auc_sort_train <-arrange(data.frame(auc_mat_train), time)
+  auc_sort_test <-arrange(data.frame(auc_mat_test), time)
+  ## in-sample HZ and smS concordance
+  c_mat_train["eta1", "HZ_HZ"] <- intAUC(auc_sort_train$HZ_eta1, auc_sort_train$time, 
+                                         KM_est_train, method = "HZ")
+  c_mat_train["eta2", "HZ_HZ"] <- intAUC(auc_sort_train$HZ_eta2, auc_sort_train$time, 
+                                         KM_est_train, method = "HZ")
+  c_mat_train["eta3", "HZ_HZ"] <- intAUC(auc_sort_train$HZ_eta3, auc_sort_train$time, 
+                                         KM_est_train, method = "HZ")
+  c_mat_train["eta1", "empirical_HZ"] <- intAUC(auc_sort_train$empirical_eta1, auc_sort_train$time, 
+                                                KM_est_train, method = "HZ")
+  c_mat_train["eta2", "empirical_HZ"] <- intAUC(auc_sort_train$empirical_eta2, auc_sort_train$time, 
+                                                KM_est_train, method = "HZ")
+  c_mat_train["eta3", "empirical_HZ"] <- intAUC(auc_sort_train$empirical_eta3, auc_sort_train$time, 
+                                                KM_est_train, method = "HZ")
+  c_mat_train["eta1", "sm_empirical_HZ"] <- intAUC(auc_sort_train$sm_empirical_eta1, auc_sort_train$time,
+                                                   KM_est_train, method = "HZ")
+  c_mat_train["eta2", "sm_empirical_HZ"] <- intAUC(auc_sort_train$sm_empirical_eta2, auc_sort_train$time,
+                                                   KM_est_train, method = "HZ")
+  c_mat_train["eta3", "sm_empirical_HZ"] <- intAUC(auc_sort_train$sm_empirical_eta3, auc_sort_train$time,
+                                                   KM_est_train, method = "HZ")
+  c_mat_train["eta1", "HZ_SmS"] <- intAUC(auc_sort_train$HZ_eta1, auc_sort_train$time, 
+                                          KM_est_train, method = "smS")
+  c_mat_train["eta2", "HZ_SmS"] <- intAUC(auc_sort_train$HZ_eta2, auc_sort_train$time, 
+                                          KM_est_train, method = "smS")
+  c_mat_train["eta3", "HZ_SmS"] <- intAUC(auc_sort_train$HZ_eta3, auc_sort_train$time, 
+                                          KM_est_train, method = "smS")
+  c_mat_train["eta1", "empirical_SmS"] <- intAUC(auc_sort_train$empirical_eta1, auc_sort_train$time, 
+                                                 KM_est_train, method = "smS")
+  c_mat_train["eta2", "empirical_SmS"] <- intAUC(auc_sort_train$empirical_eta2, auc_sort_train$time, 
+                                                 KM_est_train, method = "smS")
+  c_mat_train["eta3", "empirical_SmS"] <- intAUC(auc_sort_train$empirical_eta3, auc_sort_train$time, 
+                                                 KM_est_train, method = "smS")
+  c_mat_train["eta1", "sm_empirical_SmS"] <- intAUC(auc_sort_train$sm_empirical_eta1, auc_sort_train$time, 
+                                                    KM_est_train, method = "smS")
+  c_mat_train["eta2", "sm_empirical_SmS"] <- intAUC(auc_sort_train$sm_empirical_eta2, auc_sort_train$time, 
+                                                    KM_est_train, method = "smS")
+  c_mat_train["eta3", "sm_empirical_SmS"] <- intAUC(auc_sort_train$sm_empirical_eta3, auc_sort_train$time, 
+                                                    KM_est_train, method = "smS")
+  ### Harrels C-index
+  c_mat_train["eta1", "empirical"] <- calc_c(data_train$eta1, data_train$time, data_train$event)
+  c_mat_train["eta2", "empirical"] <- calc_c(data_train$eta2, data_train$time, data_train$event)
+  c_mat_train["eta3", "empirical"] <- calc_c(data_train$eta3, data_train$time, data_train$event)
+  ### Gonen-Heller
+  c_mat_train["eta1", "GH"] <- coxphCPE(fit_1)["CPE"]
+  c_mat_train["eta2", "GH"] <- coxphCPE(fit_2)["CPE"]
+  c_mat_train["eta3", "GH"] <- coxphCPE(fit_3)["CPE"]
+  
+  ## out-of-sample HZ and smS concordance
+  c_mat_test["eta1", "HZ_HZ"] <- intAUC(auc_sort_test$HZ_eta1, auc_sort_test$time, 
+                                         KM_est_test, method = "HZ")
+  c_mat_test["eta2", "HZ_HZ"] <- intAUC(auc_sort_test$HZ_eta2, auc_sort_test$time, 
+                                         KM_est_test, method = "HZ")
+  c_mat_test["eta3", "HZ_HZ"] <- intAUC(auc_sort_test$HZ_eta3, auc_sort_test$time, 
+                                         KM_est_test, method = "HZ")
+  c_mat_test["eta1", "empirical_HZ"] <- intAUC(auc_sort_test$empirical_eta1, auc_sort_test$time, 
+                                                KM_est_test, method = "HZ")
+  c_mat_test["eta2", "empirical_HZ"] <- intAUC(auc_sort_test$empirical_eta2, auc_sort_test$time, 
+                                                KM_est_test, method = "HZ")
+  c_mat_test["eta3", "empirical_HZ"] <- intAUC(auc_sort_test$empirical_eta3, auc_sort_test$time, 
+                                                KM_est_test, method = "HZ")
+  c_mat_test["eta1", "sm_empirical_HZ"] <- intAUC(auc_sort_test$sm_empirical_eta1, auc_sort_test$time,
+                                                   KM_est_test, method = "HZ")
+  c_mat_test["eta2", "sm_empirical_HZ"] <- intAUC(auc_sort_test$sm_empirical_eta2, auc_sort_test$time,
+                                                   KM_est_test, method = "HZ")
+  c_mat_test["eta3", "sm_empirical_HZ"] <- intAUC(auc_sort_test$sm_empirical_eta3, auc_sort_test$time,
+                                                   KM_est_test, method = "HZ")
+  c_mat_test["eta1", "HZ_SmS"] <- intAUC(auc_sort_test$HZ_eta1, auc_sort_test$time, 
+                                          KM_est_test, method = "smS")
+  c_mat_test["eta2", "HZ_SmS"] <- intAUC(auc_sort_test$HZ_eta2, auc_sort_test$time, 
+                                          KM_est_test, method = "smS")
+  c_mat_test["eta3", "HZ_SmS"] <- intAUC(auc_sort_test$HZ_eta3, auc_sort_test$time, 
+                                          KM_est_test, method = "smS")
+  c_mat_test["eta1", "empirical_SmS"] <- intAUC(auc_sort_test$empirical_eta1, auc_sort_test$time, 
+                                                 KM_est_test, method = "smS")
+  c_mat_test["eta2", "empirical_SmS"] <- intAUC(auc_sort_test$empirical_eta2, auc_sort_test$time, 
+                                                 KM_est_test, method = "smS")
+  c_mat_test["eta3", "empirical_SmS"] <- intAUC(auc_sort_test$empirical_eta3, auc_sort_test$time, 
+                                                 KM_est_test, method = "smS")
+  c_mat_test["eta1", "sm_empirical_SmS"] <- intAUC(auc_sort_test$sm_empirical_eta1, auc_sort_test$time, 
+                                                    KM_est_test, method = "smS")
+  c_mat_test["eta2", "sm_empirical_SmS"] <- intAUC(auc_sort_test$sm_empirical_eta2, auc_sort_test$time, 
+                                                    KM_est_test, method = "smS")
+  c_mat_test["eta3", "sm_empirical_SmS"] <- intAUC(auc_sort_test$sm_empirical_eta3, auc_sort_test$time, 
+                                                    KM_est_test, method = "smS")
+  ### Harrels C-index
+  c_mat_test["eta1", "empirical"] <- calc_c(data_test$eta1, data_test$time, data_test$event)
+  c_mat_test["eta2", "empirical"] <- calc_c(data_test$eta2, data_test$time, data_test$event)
+  c_mat_test["eta3", "empirical"] <- calc_c(data_test$eta3, data_test$time, data_test$event)
+  ### Gonen-Heller
+  fit_1_test <- coxph(Surv(time, event) ~ X, data=data_test)
+  fit_2_test <- coxph(Surv(time, event) ~ X + Z[,1:20], data=data_test)
+  fit_3_test <- coxph(Surv(time, event) ~ X + Z, data=data_test)
+  c_mat_test["eta1", "GH"] <- coxphCPE(fit_1_test)["CPE"]
+  c_mat_test["eta2", "GH"] <- coxphCPE(fit_2_test)["CPE"]
+  c_mat_test["eta3", "GH"] <- coxphCPE(fit_3_test)["CPE"]
+  
+  # save to final results
+  auc_lst_train[[iter]] <- auc_mat_train
+  auc_lst_test[[iter]] <- auc_mat_test
+  c_lst_train[[iter]] <- c_mat_train
+  c_lst_test[[iter]] <- c_mat_test
   
   setTxtProgressBar(pb, value=iter)
 }
 
-auc_lst <- lapply(auc_lst, as.data.frame)
-auc_df <- bind_rows(auc_lst)
+auc_lst_train[[1]] %>% head()
+auc_lst_test[[1]] %>% head()
+c_lst_train[[1]]
+c_lst_test[[1]]
+
+auc_lst_train <- lapply(auc_lst_train, as.data.frame)
+auc_lst_test <- lapply(auc_lst_test, as.data.frame)
+auc_df_train <- bind_rows(auc_lst_train, .id = "iter")
+auc_df_test <- bind_rows(auc_lst_test, .id = "iter")
+length(unique((auc_df_train$iter)))
 
 ## concordance
-c_df <- bind_rows(lapply(c_lst, as.data.frame))
-c_df <- c_df %>% pivot_longer(1:8, names_to = "estimator", values_to = "concordance")
-c_df$estimator <- factor(c_df$estimator, 
+
+c_lst_train <- lapply(c_lst_train, as.data.frame)
+c_df_train <- lapply(c_lst_train, rownames_to_column, "signal") 
+c_df_train <- bind_rows(c_df_train, .id = "iter")
+c_df_train <- c_df_train %>% pivot_longer(3:10, names_to = "estimator", values_to = "concordance")
+c_df_train$estimator <- factor(c_df_train$estimator, 
                          levels = c("empirical", "GH", "HZ_HZ", "HZ_SmS",
                                     "empirical_HZ", "empirical_SmS",
                                     "sm_empirical_HZ", "sm_empirical_SmS"))
 
-save(auc_df, c_df, file = here("outputData/estimated_values.RData"))
-save(auc_lst, file = here("outputData/results_by_iter.RData"))
+c_lst_test <- lapply(c_lst_test, as.data.frame)
+c_df_test <- lapply(c_lst_test, rownames_to_column, "signal") 
+c_df_test <- bind_rows(c_df_test, .id = "iter")
+c_df_test <- c_df_test %>% pivot_longer(3:10, names_to = "estimator", values_to = "concordance")
+c_df_test$estimator <- factor(c_df_test$estimator, 
+                               levels = c("empirical", "GH", "HZ_HZ", "HZ_SmS",
+                                          "empirical_HZ", "empirical_SmS",
+                                          "sm_empirical_HZ", "sm_empirical_SmS"))
+
+
+
+save(auc_df_train, auc_df_test, c_df_train, c_df_test, file = here("outputData/estimated_values.RData"))
+save(auc_lst_train, auc_lst_test, file = here("outputData/results_by_iter.RData"))
 
 ##### true AUC and concordance #####
 # do not run this section

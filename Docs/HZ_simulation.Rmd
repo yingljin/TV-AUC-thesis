@@ -20,15 +20,20 @@ library(ggplot2)
 
 # Introduction
 
-- AUC and measures of discrimination are important model evaluation criteria for survival models.
-- Many estimators proposed, some work done examining the problem with violations of the PH assumption
-- No previous work identified critical flaw which affects reasonableness of these estimators’ use in prediction work
-- We are trying to identifying key flaw in common estimators of I/D AUC and their impact on Concordance
-- also propose which estimators to use in the future for prediction work
+Time-dependent AUC and concordance are important model evaluation criteria for survival models. While one popular estimator for incident/dynamic AUC is a semi-parametric estimator proposed by Heagerty and Zheng (2005), there is a critical flaw that makes this estimator very sensitive to noise signals or outliers. 
+With the presence of noise, this estimator tends to overfit to the training data, while out-of-sample estimators are inflated unresonably high (as demonstrated in the image below). 
+
+We are trying to identifying key flaw in HZ estimators of I/D AUC and their impact on Concordance, also compare prediction performance of common estimators with the presence of noise.
+
+```{r, echo=FALSE}
+knitr::include_graphics("../screenshots/outlierauc.png")
+```
 
 # Method
 
-## Incidence/Dynamic AUC
+We are going to estimated time-dependent AUC and concrdance using several different methods on simulated data set and compare their performance.
+
+## Incident/Dynamic AUC
 
 For a fixed time point $t > 0$ at various candidate thresholds $c$ of the biomarker $\eta_i$, define:  
 $$\begin{align*}
@@ -48,9 +53,9 @@ $$\begin{align*}
     \text{AUC}^{\mathbb{I}/\mathbb{D}}(t) &= \int_0^1 \text{ROC}_t^{\mathbb{I}/\mathbb{D}}(p)dp
 \end{align*}$$
 
-### Hagerty & Zhang estimator (semi-parametric)
+### Heagerty & Zheng estimator (semi-parametric)
 
-From the Heagerty & Zhang paper, sensitivity and specificity is estimated based on cox PH model:
+From the Heagerty & Zheng paper, sensitivity and specificity is estimated based on cox PH model:
 
 $$\begin{align*}
     \log \lambda_i(t) &= \log \lambda_0(t) + \bf{x}_i \bf{\beta} \\
@@ -89,7 +94,7 @@ Where $\tau$ is the end of follow-up period, and
 $$w^{\tau}(t) = 2f(t)S(t)/W^{\tau}$$
 
 $$W^{\tau} =\int_0^\tau2f(t)S(t)dt =1-S^2(\tau)$$
-$S(t)$ can be estimated from Kaplan-Meier curve. $f(t)$ can be calculated using Trapezoidal rule over $S(t)$ or smoothed $S(t)$.
+$S(t)$ can be estimated from Kaplan-Meier curve. As proposed in HZ paper, $f(t)$ can be calculated using Trapezoidal rule over $S(t)$. However, we think using derivative of smoothed $S(t)$ is more robust.
 
 ### Gonen & Heller
 
@@ -113,19 +118,31 @@ $$C = \frac{\sum_{i<j}I(T_i<T_j)I(\eta_i>\eta_j)I(\delta_i=1)+I(T_i>T_j)I(\eta_i
 ```{r}
 load(here("outputData/true_values.RData"))
 load(here("outputData/estimated_values.RData"))
-load(here("outputData/weighted_gam_by_iter.RData"))
+#load(here("outputData/weighted_gam_by_iter.RData"))
 ```
 
 ```{r}
-auc_df <- auc_df %>% left_join(wt_gam_df, by = "time")
+# auc_df <- auc_df %>% left_join(wt_gam_df, by = "time")
 ```
 
 
 ```{r}
 # use interpolation to estimate true_auc
-interpolated_auc<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, xout = auc_df$time)$y
+interpolated_auc_train<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
+                         xout = auc_df_train$time)$y
+interpolated_auc_test<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
+                         xout = auc_df_test$time)$y
+
 # plot(auc_df$time, interpolated_auc)
-auc_df$true <- interpolated_auc
+auc_df_train$true <- interpolated_auc_train
+auc_df_test$true <- interpolated_auc_test
+
+auc_df_train$sample = "in-sample"
+auc_df_test$sample = "out-of-sample"
+auc_df <- rbind(auc_df_train, auc_df_test)
+
+# some more cleaning
+
 ```
 
 ```{r eval=FALSE}
@@ -136,10 +153,6 @@ auc_df %>%
   labs(title = "True time-varying AUC")
 ```
 
-```{r}
-colnames(auc_df) <- c("time", "Heagerty-Zhang", "Non-parametric", "Smoothed non-parametric",
-                      "Weighted smoothed non-parametric", "True")
-```
 
 ```{r eval=FALSE}
 auc_df %>% 
@@ -149,20 +162,51 @@ auc_df %>%
   labs(title = "Time-varying AUC")
 ```
 
-```{r, fig.height=5, fig.width=10}
-auc_df %>% 
-  pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
-  ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
-  geom_smooth(se = F, formula = y~s(x, bs = "cs"), na.rm = T, method = "gam", size = 0.7)+
-  labs(title = "Smoothed time-varying AUC")
+```{r}
+auc_df %>% dplyr::select(time, contains("_eta1"), true, sample) %>%
+  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
+  mutate(estimator = factor(estimator, levels = c("HZ_eta1", "empirical_eta1", "sm_empirical_eta1"),
+                            labels = c("HZ", "NP", "SNP"))) %>%
+  ggplot()+
+  geom_smooth(aes(x = time, y = auc, group = sample, col = sample), 
+              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
+  geom_line(aes(x = time, y = true), na.rm = T)+
+  facet_wrap(~estimator)+
+  labs(title = "No noise")
 ```
 
-```{r, fig.height=5, fig.width=10}
+```{r}
+auc_df %>% dplyr::select(time, contains("_eta2"), true, sample) %>%
+  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
+  mutate(estimator = factor(estimator, levels = c("HZ_eta2", "empirical_eta2", "sm_empirical_eta2"),
+                            labels = c("HZ", "NP", "SNP"))) %>%
+  ggplot()+
+  geom_smooth(aes(x = time, y = auc, group = sample, col = sample), 
+              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
+  geom_line(aes(x = time, y = true), na.rm = T)+
+  facet_wrap(~estimator)+
+  labs(title = "20 noise signals")
+```
+
+```{r}
+auc_df %>% dplyr::select(time, contains("_eta3"), true, sample) %>%
+  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
+  mutate(estimator = factor(estimator, levels = c("HZ_eta3", "empirical_eta3", "sm_empirical_eta3"),
+                            labels = c("HZ", "NP", "SNP"))) %>%
+  ggplot()+
+  geom_smooth(aes(x = time, y = auc, group = sample, col = sample), 
+              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
+  geom_line(aes(x = time, y = true), na.rm = T)+
+  facet_wrap(~estimator)+
+  labs(title = "100 noise signals")
+```
+
+```{r, eval=FALSE, fig.height=5, fig.width=10}
 brk <- seq(0, 1, 0.01)
 auc_df %>%
   mutate(time_bin = cut(auc_df$time, breaks = brk, include.lowest = T,
                        seq(0.005, 0.995, 0.01))) %>%
-  dplyr::select(-True) %>%
+  dplyr::select(-true) %>%
   pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
   ggplot(aes(x = factor(time_bin), y = auc))+
   geom_boxplot(outlier.size = 0.5)+
@@ -173,18 +217,41 @@ auc_df %>%
 
 
 ```{r}
-c_df$estimator <- factor(c_df$estimator, levels = levels(c_df$estimator),
+c_df_train$estimator <- factor(c_df_train$estimator, levels = levels(c_df_train$estimator),
                          labels = c("Harrel's C", "Gonen-Heller", "HZ_S",
                                     "HZ_SmS",
                                     "NP_S",
                                     "NP_SmS",
                                     "SNP_S",
                                     "SNP_SmS"))
-c_df %>%  ggplot(aes(x = estimator, y = concordance))+
+c_df_train$signal <- factor(c_df_train$signal, levels = levels(as.factor(c_df_train$signal)),
+                           labels = c("No noise", "20 noise", "100 noise"))
+
+c_df_train %>%  ggplot(aes(x = estimator, y = concordance))+
   geom_boxplot()+
   theme(axis.text.x = element_text(angle = 60, vjust = 0.5))+
   geom_hline(yintercept = true_c, col = "red")+
-  labs(title = "Concordance")
+  facet_wrap(~signal)+
+  labs(title = "In-sample concordance")
+```
+
+```{r}
+c_df_test$estimator <- factor(c_df_test$estimator, levels = levels(c_df_test$estimator),
+                         labels = c("Harrel's C", "Gonen-Heller", "HZ_S",
+                                    "HZ_SmS",
+                                    "NP_S",
+                                    "NP_SmS",
+                                    "SNP_S",
+                                    "SNP_SmS"))
+
+c_df_test$signal <- factor(c_df_test$signal, levels = levels(as.factor(c_df_test$signal)),
+                           labels = c("No noise", "20 noise", "100 noise"))
+c_df_test %>%  ggplot(aes(x = estimator, y = concordance))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.5))+
+  geom_hline(yintercept = true_c, col = "red")+
+  facet_wrap(~signal)+
+  labs(title = "Out of sample concordance")
 ```
 
 Note: 
@@ -202,5 +269,6 @@ Note:
 
 - SNP_SmS: Smoothed non-parametric estimator of $AUC(t)$ integrated using weights from smoothed survival function
 
+# References
 
-
+Heagerty, P. J., & Zheng, Y. (2005). Survival model predictive accuracy and ROC curves. Biometrics, 61(1), 92–105. https://doi.org/10.1111/j.0006-341X.2005.030814.x
