@@ -257,13 +257,13 @@ for(iter in 1:M){
   c_mat_test["eta1", "empirical"] <- calc_c(data_test$eta1, data_test$time, data_test$event)
   c_mat_test["eta2", "empirical"] <- calc_c(data_test$eta2, data_test$time, data_test$event)
   c_mat_test["eta3", "empirical"] <- calc_c(data_test$eta3, data_test$time, data_test$event)
-  ### Gonen-Heller
-  fit_1_test <- coxph(Surv(time, event) ~ X, data=data_test)
-  fit_2_test <- coxph(Surv(time, event) ~ X + Z[,1:20], data=data_test)
-  fit_3_test <- coxph(Surv(time, event) ~ X + Z, data=data_test)
-  c_mat_test["eta1", "GH"] <- coxphCPE(fit_1_test)["CPE"]
-  c_mat_test["eta2", "GH"] <- coxphCPE(fit_2_test)["CPE"]
-  c_mat_test["eta3", "GH"] <- coxphCPE(fit_3_test)["CPE"]
+  ### Gonen-Heller: need to use the fitted cox to calculate biomarker
+  # fit_1_test <- coxph(Surv(time, event) ~ X, data=data_test)
+  # fit_2_test <- coxph(Surv(time, event) ~ X + Z[,1:20], data=data_test)
+  # fit_3_test <- coxph(Surv(time, event) ~ X + Z, data=data_test)
+  c_mat_test["eta1", "GH"] <- coxphCPE_eta(fit_1, data_test$X)['CPE']
+  c_mat_test["eta2", "GH"] <- coxphCPE_eta(fit_2, cbind(data_test$X, data_test$Z[, 1:20]))["CPE"]
+  c_mat_test["eta3", "GH"] <-  coxphCPE_eta(fit_3, cbind(data_test$X, data_test$Z))["CPE"]
   
   # save to final results
   auc_lst_train[[iter]] <- auc_mat_train
