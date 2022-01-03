@@ -23,9 +23,9 @@ library(ggplot2)
 Time-dependent AUC and concordance are important model evaluation criteria for survival models. While one popular estimator for incident/dynamic AUC is a semi-parametric estimator proposed by Heagerty and Zheng (2005), there is a critical flaw that makes this estimator very sensitive to noise signals or outliers. 
 With the presence of noise, this estimator tends to overfit to the training data, while out-of-sample estimators are inflated unresonably high (as demonstrated in the image below). 
 
-We are trying to identifying key flaw in HZ estimators of I/D AUC and their impact on Concordance, also compare prediction performance of common estimators with the presence of noise.
+In this report, we attempt to identify key flaw in HZ estimators of I/D AUC and their impact on Concordance, also compare prediction performance of common estimators with the presence of noise.
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, out.width='80%'}
 knitr::include_graphics("../screenshots/outlierauc.png")
 ```
 
@@ -163,7 +163,7 @@ auc_df %>%
 ```
 
 ```{r}
-auc_df %>% dplyr::select(time, contains("_eta1"), true, sample) %>%
+p1 <- auc_df %>% dplyr::select(time, contains("_eta1"), true, sample) %>%
   pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
   mutate(estimator = factor(estimator, levels = c("HZ_eta1", "empirical_eta1", "sm_empirical_eta1"),
                             labels = c("HZ", "NP", "SNP"))) %>%
@@ -176,7 +176,7 @@ auc_df %>% dplyr::select(time, contains("_eta1"), true, sample) %>%
 ```
 
 ```{r}
-auc_df %>% dplyr::select(time, contains("_eta2"), true, sample) %>%
+p2 <- auc_df %>% dplyr::select(time, contains("_eta2"), true, sample) %>%
   pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
   mutate(estimator = factor(estimator, levels = c("HZ_eta2", "empirical_eta2", "sm_empirical_eta2"),
                             labels = c("HZ", "NP", "SNP"))) %>%
@@ -189,7 +189,7 @@ auc_df %>% dplyr::select(time, contains("_eta2"), true, sample) %>%
 ```
 
 ```{r}
-auc_df %>% dplyr::select(time, contains("_eta3"), true, sample) %>%
+p3 <- auc_df %>% dplyr::select(time, contains("_eta3"), true, sample) %>%
   pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
   mutate(estimator = factor(estimator, levels = c("HZ_eta3", "empirical_eta3", "sm_empirical_eta3"),
                             labels = c("HZ", "NP", "SNP"))) %>%
@@ -199,6 +199,10 @@ auc_df %>% dplyr::select(time, contains("_eta3"), true, sample) %>%
   geom_line(aes(x = time, y = true), na.rm = T)+
   facet_wrap(~estimator)+
   labs(title = "100 noise signals")
+```
+
+```{r, fig.width=8, fig.height=8}
+ggpubr::ggarrange(p1, p2, p3, nrow = 3, ncol = 1, common.legend = T)
 ```
 
 ```{r, eval=FALSE, fig.height=5, fig.width=10}
@@ -216,7 +220,7 @@ auc_df %>%
 ```
 
 
-```{r}
+```{r, out.width='100%'}
 c_df_train$estimator <- factor(c_df_train$estimator, levels = levels(c_df_train$estimator),
                          labels = c("Harrel's C", "Gonen-Heller", "HZ_S",
                                     "HZ_SmS",
@@ -235,7 +239,7 @@ c_df_train %>%  ggplot(aes(x = estimator, y = concordance))+
   labs(title = "In-sample concordance")
 ```
 
-```{r}
+```{r, out.width='100%'}
 c_df_test$estimator <- factor(c_df_test$estimator, levels = levels(c_df_test$estimator),
                          labels = c("Harrel's C", "Gonen-Heller", "HZ_S",
                                     "HZ_SmS",
