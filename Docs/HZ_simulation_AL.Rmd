@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F)
+knitr::opts_chunk$set(echo = F, eval=FALSE)
 
 set.seed(818)
 library(here)
@@ -20,13 +20,15 @@ library(ggplot2)
 
 # Introduction
 
-Time-dependent AUC and concordance are commonly used criteria for evaluating the discriminative performance of time-to-event models. These criteria are used in practice for both variable/model selection and comparing the performance of various models across studies [insert references]. It has been shown that Concordance ($C$), a global measure of discrimination, is a weighted average of time-varying incident/dynamic AUC ($\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$) (Heagerty and Zheng, 2005). Several commonly used estimators of both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ suffer from a previously unidentified shortcoming which renders them fundamentally unsuitable for assessing out-of-sample discrimination (e.g. cross-validation, test-train-validation). Specifically, there is a potential for out-of-sample discrimination to be **vastly overestimated**, an issue that is very rarely seen in practice. Bringing attention to this issue and proposing an alternative framework is crucial for applied work. Correspondingly, the goals of the current work are to: 
+
+Time-dependent AUC and concordance are commonly used criteria for evaluating the discriminative performance of time-to-event models. These criteria are used in practice for both variable/model selection and comparing the performance of various models across studies [insert references]. It has been shown that Concordance ($C$), a global measure of discrimination, is a weighted average of time-varying incident/dynamic AUC ($\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$) [insert HZ reference]. Several commonly used estimators of both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ suffer from a previously unidentified shortcoming which renders them fundamentally unsuitable for assessing out-of-sample discrimination (e.g. cross-validation, test-train-validation). Specifically, there is a potential for out-of-sample discrimination to be **vastly overestimated**, an issue that is very rarely seen in practice. Bringing attention to this issue and proposing an alternative framework is crucial for applied work. Correspondingly, the goals of the current work are to: 
 
 1. Highlight and show via a comprehensive simulation study that certain classes of estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}$ and $C$ are unsuitable for assessing out-of-sample discrimination
-
 2. Propose a set of estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}$ and $C$  suitable for out-of-sample discrimination and develop a corresponding inferential framework 
 
-Briefly, both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ use observed event/censoring times ($T_i, \delta_i$) and estimates of risk ($\eta_i(t)$) obtained from, for example, Cox regression, to determine whether individuals with higher estimated risk tend to have earlier event times. The issue with certain estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ is that the presence of outlying estimated risk ($\eta_i(t)$) can result in massive, unjustified shifts in estimated discrimination. To illustrate the magnitude of this issue, the Figure below plots an ROC curve for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ created using the Heagerty \& Zheng (2005) estimator created using simulated data, predicting out-of-sample $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ on $N=500$ (red line) versus $N=501$ (blue line) participants. The one additional participant is an extreme outlier in predicted risk. The inclusion of one additional participant's data shifts estimated AUC from $\approx 0.81$ to $\approx 1$, which is clearly implausible in the context of $500$ other data points.
+Briefly, both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ use observed event/censoring times ($T_i, \delta_i$) and estimates of risk ($\eta_i(t)$) obtained from, for example, Cox regression, to determine whether individuals with higher estimated risk tend to have earlier event times. The issue with certain estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ is that the presence of outlying estimated risk ($\eta_i(t)$) can result in massive, unjustified, shifts in estimated discrimination. To illustrate the magnitude of this issue, the Figure below plots an ROC curve for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ created using the Heagerty \& Zheng estimator created using simulated data, predicting out-of-sample $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ on $N=500$ (red line) versus $N=501$ (blue line) participants. The one additional participant is an extreme outlier in predicted risk. The inclusion of one additional participant's data shifts estimated AUC from $\approx 0.81$ to $\approx 1$, which is clearly implausible in the context of $500$ other data points.
+
+
 
 ```{r, echo=FALSE, out.width='80%'}
 knitr::include_graphics("../screenshots/outlierauc.png")
@@ -34,82 +36,74 @@ knitr::include_graphics("../screenshots/outlierauc.png")
 
 Estimates of $C$ based on these quantities are thus similarly affected.
 
+
 We have identified the underlying issue that's driving this phenomena. Specifically, this phenomena is the result of the inclusion of terms of the form $e^{\eta_i}$ in the denominator and/or numerator of the estimators (in the case of $\text{AUC}^{\mathbb{I}/\mathbb{D}}$, in the estimator for true positive rate). Estimators of this form are semi-parametric estimators and have the benefit of creating a relatively smooth estimates of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ over time ($t$). Fully non-parametric estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ do not suffer from this issue. However, because we generally observe only one event at a particular time, the non-parametric estimators for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ are highly variable (not smooth). Therefore, we propose that:
 
 * For estimating $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, smoothed versions of non-parametric estimators for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ be used in practice.
-
-* For estimating $C$, fully non-parametric estimators or weighted averages of smoothed versions of non-parametric estimators for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ be used in practice.
+* For estimating $C$, fully non-parametric estimators  or weighted averages of smoothed versions of non-parametric estimators for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ be used in practice.
 
 Below, we 1) present a brief description of various semi- and non-parametric estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$; and 2) provide a short simulation study (which will be expanded on in a manuscript) illustrating the issue with semi-parametric estimators of discrimination. 
 
-# Method
+
+
+# Methods
 
 Here, we discuss the estimands ($\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, $C$) and their various semi- and non-paramteric estimators. First, we introduce some necessary notation and background. 
 
 Let $i = 1,\ldots, N$ denote individual. Suppose we are interested in a time-to-event random variable, $T_i^*$, which is subject to right censoring. For each individual we observe $[T_i, \delta_i, \boldsymbol{X}_i^t]$ where $T_i = \text{min}(T_i^*, C_i)$ is the observed event time (minimum of censoring time and true event time), $\delta_i = 1(T_i^* < C_i)$ is the event indicator, and  $\boldsymbol{X}_i \in \mathbb{R}^p$ is a vector of time-fixed covariates. The observed data are then $[\{T_i, \delta_i, \boldsymbol{X}_i \}, i = 1,\ldots, N]$.
 
 For simplicity of presentation, we assume (conditionally) independent censoring and the data are generated by Cox proportional hazards model. Specifically, we assume the (conditional) distribution of event times is specified by a linear combination of a (log) baseline hazard and the covariate vector $\boldsymbol{X}_i$. Mathematically, we have
-
-$$\begin{align*}
+\begin{align*}
 \log \lambda_i(t|\boldsymbol{X}_i) &= \log \lambda_0(t) + \boldsymbol{X}_i^t \boldsymbol{\beta}\;, \hspace{0.5cm} t > 0 \\
 &= \log\lambda_0(t) + \eta_i
-\end{align*}$$
-
+\end{align*}
 where $\log \lambda_i(t|\boldsymbol{X}_i)$ is the conditional log-hazard for subject $i$ given their covariate vector $\boldsymbol{X}_i$, $\log \lambda_0(t)$ is the log baseline hazard, and $\boldsymbol{\beta}$ is a vector indicating the linear  contribution of each element of $\boldsymbol{X}_i$ to the log hazard.
 
 ## Estimands
 
-### Concordance
+
+### Concordance ($C$)
 
 The first estimand we discuss is Concordance ($C$). Concordance is a global summary of the discriminatory power a biomarker (in our context, the subject-specific log-hazard) to discriminate between the ordering of event times. Specifically, the estimand of interest is:
-
-$$\begin{align*}
+\begin{align*}
 C &= \text{Pr}(\eta_i < \eta_i| T_i > T_j)\;.
-\end{align*}$$
-
+\end{align*}
 In the context of administrative censoring (e.g. a study end date), $C$ above is modified to
-
-$$\begin{align*}
+\begin{align*}
 C^\tau &= \text{Pr}(\eta_i < \eta_i| T_i > T_j, T_i < \tau)\;,
-\end{align*}$$
+\end{align*}
+where $\tau$ is the ``study end date". Hereafter we will restrict our focus to $C_\tau$.
 
-where $\tau$ is the **study end date**. Hereafter we will restrict our focus to $C_\tau$.
 
 ### Incident/Dynamic AUC
 
 It is known that Concordance is a weighted average of time-varying AUC. Specifically, time-varying incident/dynamic AUC ($\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$). Formally, 
-
-$$\begin{align*}
+\begin{align*}
 \text{C}^\tau &= \int_0^\tau\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)w^{\tau(t)}dt\;,
-\end{align*}$$
-
+\end{align*}
 where 
-
-$$\begin{align*}
+\begin{align*}
 w^{\tau}(t) &= 2f(t)S(t)/1-S^2(\tau)\;.
-\end{align*}$$
-
+\end{align*}
 In the formulas above, $S(t)$ is the marginal survival function of event times (not conditional on covariates) and $f(t)$ is the corresponding density function. 
 
-$\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ itself is defined by incident sensitivity and dynamic specificity, 
-defined as
-
-$$\begin{align*}
+$\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ itself is defined by incident sensitvity and dynamic specificity, defined as
+\begin{align*}
     \text{sensitivity}^{\mathbb{I}}(c,t) = & \text{TP}_t^{\mathbb{I}}(c) = \text{Pr}(\eta_i > c|T_i = t) \\
     1-\text{specificity}^{\mathbb{D}}(c,t) = & \text{FP}_t^{\mathbb{D}}(c) = 1-\text{Pr}(\eta_i \leq c|T_i > t) \\
-\end{align*}$$
+\end{align*}
 
-from which one can defined an incident/dynamic receiver operator characteristic (ROC) curve (p denotes a dynamic value of FP):
+from which one can defined an incident/dynamic receiver operator characteristic (ROC) curve (p denotes a dynamic  value of FP):
 
 $$\begin{align*}
     \text{ROC}_t^{\mathbb{I}/\mathbb{D}}(p) =  \text{TP}_t^{\mathbb{I}}\{[\text{FP}_t^{\mathbb{D}}]^{-1}(p)\}
 \end{align*}$$
 
 Consequently I/D AUC:
-
-$$\begin{align*}
+\begin{align*}
     \text{AUC}^{\mathbb{I}/\mathbb{D}}(t) &= \int_0^1 \text{ROC}_t^{\mathbb{I}/\mathbb{D}}(p)dp
-\end{align*}$$
+\end{align*}
+
 
 ## Estimators 
 
@@ -118,26 +112,25 @@ Here we discuss a number of estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)
 ### Concordance
 
 1. Integrated estimated $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$:
+\begin{align*}
+\text{C} &= \int_0^\tau\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)w^{\tau(t)}dt
+\end{align*}
+recall that estimating $w^{\tau}(t)$ requires estimates of $S(t)$ and $f(t)$. So, this estimator of concordance requires estimates for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, $S(t)$, and $f(t)$. These quantities are evaluated at each observed event time, and then integrated numerically using, for example, the trapezoidal rule. <br /> There are various approaches for estimating each of these quantities. For simplicity of presentation we will defer the detials on estimating $f(t)$ and $S(t)$ to the manuscript and focus here on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, we consider two estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, a semi-paramtric estimator and a non-parametric estimator. These are discussed in the section on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ below. 
 
-$$\begin{align*}
-\text{C}^{\tau} &= \int_0^\tau\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)w^{\tau}(t)dt
-\end{align*}$$
 
-recall that estimating $w^{\tau}(t)$ requires estimates of $S(t)$ and $f(t)$. So, this estimator of concordance requires estimates for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, $S(t)$, and $f(t)$. These quantities are evaluated at each observed event time, and then integrated numerically using, for example, the trapezoidal rule. There are various approaches for estimating each of these quantities. For simplicity of presentation we will defer the detials on estimating $f(t)$ and $S(t)$ to the manuscript and focus here on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, we consider two estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, a semi-paramtric estimator and a non-parametric estimator. These are discussed in the section on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ below. 
-
-2. Gonen & Heller (2005):
-
-$$C = \frac{2}{n(n-1)}\sum_{i<j}{\frac{I(\eta_j-\eta_i<0)}{1+exp(\eta_j-\eta_i)}+\frac{I(\eta_i-\eta_j<0)}{1+exp(\eta_i-\eta_j)}}$$
-
+2. Gonen & Heller:
+\begin{align*}
+C &= \frac{2}{n(n-1)}\sum_{i<j}{\frac{I(\eta_j-\eta_i<0)}{1+exp(\eta_j-\eta_i)}+\frac{I(\eta_i-\eta_j<0)}{1+exp(\eta_i-\eta_j)}}
+\end{align*}
 In addition to observed quantities, the Gonen & Heller estimator of Concordance requires only estimates of risk ($\eta_i$). Note that the Gonen & Heller estimator has terms of the form $e^{\eta}$ in the denominator.
 
-3. Harrel's C-index (1982, 1984):
-
-$$C = \frac{\sum_{i<j}I(T_i<T_j)I(\eta_i>\eta_j)I(\delta_i=1)+I(T_i>T_j)I(\eta_i<\eta_j)I(\delta_j=1)}{\sum_{i<j}I(T_i<T_j)I(\delta_i=1)+I(T_i>T_j)I(\delta_j=1)}$$
-
+3. Harrel's C-index:
+\begin{align*}
+C &= \frac{\sum_{i<j}I(T_i<T_j)I(\eta_i>\eta_j)I(\delta_i=1)+I(T_i>T_j)I(\eta_i<\eta_j)I(\delta_i=1)}{\sum_{i<j}I(T_i<T_j)I(\delta_i=1)+I(T_i>T_j)I(\delta_i=1)}
+\end{align*}
 In addition to observed quantities, the Harrell's estimator of Concordance requires only estimates of risk ($\eta_i$) and is fully non-parametric.
 
-### Incident/dynamic AUC
+### $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ 
 
 Estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$  evaluate incident sensitivity ($\text{Pr}(\eta_i > c | T_i = t)$) and dynamic specificity ($\text{Pr}(\eta_i \leq c | T_i > t)$) at each unique value of the biomarker among those individuals still in the risk set at time $t$ ($\{\eta_i: T_i \geq t\}$). 
 
@@ -145,27 +138,31 @@ Of those methods considered here, all use a non-parametric estimator for dynamic
 
 However, the non-parametric estimator of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ turns out to be highly variable since in practice we generally observe only a few (or even a single) events at  a given $t$. Thus, we propose an additional non-paramteric estimator of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ which is a smoothed version of the non-parametric estimator based on regression splines. We describe the smoothed estimator in more detail below. 
 
-**Estimator of dynamic specificity**: For a fixed threshold $c$, we estimate the false positive rate (1-incident specificity) as: 
+* Estimator of dynamic specificity: For a fixed threshold $c$, we estimate the false positive rate (1-incident specificity) as
+\begin{align*}
+\hat{\text{FP}_t}^{\mathbb{D}}(c) &= \frac{\sum_{k}I(\eta_k>c)I(T_k>t)}{\sum_{j}I(T_j>t)}
+\end{align*}
 
-$$\text{FP}_t^{\mathbb{D}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k>t)}{\sum_{j}I(T_j>t)}$$
+* Estimators of incident sensitivity 
+    + Semi-parametric
+    \begin{align*}
+    \hat{\text{TP}_t}^{\mathbb{I}}(c)&=\frac{\sum_{k}I(\eta_k>c)I(T_k=t)exp(\eta_t)}{\sum_{j}I(T_j=t)exp(\eta_j)}
+    \end{align*}
+    + Non-parametric: The non-parametric estimator of incident sensitivity is presented beelow. Note that because there are relatively few inidividuals with $T_i = t$ for a given $t$, this estimator is highly variable.
+    \begin{align*}
+    \hat{\text{TP}_t}^{\mathbb{I}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k=t)}{\sum_{j}I(T_j=t)}
+    \end{align*}
 
-**Estimators of incident sensitivity**: 
-
-- Semi-parametric: 
-
-$$\hat{\text{TP}_t}^{\mathbb{I}}(c)=\frac{\sum_{k}I(\eta_k>c)I(T_k=t)exp(\eta_k)}{\sum_{j}I(T_j=t)exp(\eta_j)}$$
-
-- Non-parametric: The non-parametric estimator of incident sensitivity is presented beelow. Note that because there are relatively few inidividuals with $T_i = t$ for a given $t$, this estimator is highly variable.
-
-$$\hat{\text{TP}_t}^{\mathbb{I}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k=t)}{\sum_{j}I(T_j=t)}$$
 At each unique observed event time $t$, we have estimates of $\hat{\text{TP}_t}^{\mathbb{I}}(c)$ and $\hat{\text{FP}_t}^{\mathbb{D}}(c)$ at each unique biomarker value. From these we obtain $\hat{\text{AUC}}^{\mathbb{I}/\mathbb{D}}(t)$ by integrating the corresponding ROC curve numerically. For the non-parametric estimator, we then smooth the $\hat{\text{AUC}}^{\mathbb{I}/\mathbb{D}}(t)$ across time using penalized splines to create the "smoothed non-parametric estimator" of $\hat{\text{AUC}}^{\mathbb{I}/\mathbb{D}}(t)$.
 
 
-# Results
+# Simulation Study
+
+The simulation study presented here is designed to illustrate the undesirable properties of semi-parametric estimators of both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$. 
 
 ## Simulation set up
 
-The simulation study presented here is designed to illustrate the undesirable properties of semi-parametric estimators of both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$. 
+For this brief simulation study we simulate data 
 
 - 1000 iterations, sample size = 500
 - Signals $X = (X_1, X_2, X_3)$, $X_i \overset{i.i.d}{\sim} N(0, 1)$; true coefficients $\beta = (1, -1, 0.25)$; biomarker $\eta = \beta X$
@@ -335,5 +332,3 @@ Note:
 # References
 
 Heagerty, P. J., & Zheng, Y. (2005). Survival model predictive accuracy and ROC curves. Biometrics, 61(1), 92–105. https://doi.org/10.1111/j.0006-341X.2005.030814.x
-
-Gönen, M., & Heller, G. (2005). Concordance Probability and Discriminatory Power in Proportional Hazards Regression. Biometrika, 92(4), 965–970. http://www.jstor.org/stable/20441249

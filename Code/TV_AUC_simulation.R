@@ -17,7 +17,7 @@ source(here("Code/helpers.R"))
 
 #### Simulation set up ####
 
-M <- 1000 # number of simulated data sets
+M <- 10 # number of simulated data sets
 N <- 500 # number of subjects
 Beta <- c(1,-1,0.25)
 
