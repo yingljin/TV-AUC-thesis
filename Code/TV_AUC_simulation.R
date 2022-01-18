@@ -17,7 +17,7 @@ source(here("Code/helpers.R"))
 
 #### Simulation set up ####
 
-M <- 10 # number of simulated data sets
+M <- 1000 # number of simulated data sets
 N <- 500 # number of subjects
 Beta <- c(1,-1,0.25)
 
@@ -41,7 +41,7 @@ for(iter in 1:M){
   ## add noise signal: 20 or 100, N(0, 1)
   Z <- matrix(rnorm(N*100), ncol = 100, nrow = N)
   eta <- X %*% Beta
-  data <- gen_St(eta=eta,lambda=2, p=2, gen_Ct = function(N) rep(1,N))
+  data <- gen_St(eta=eta,lambda=2, p=2, gen_Ct = function(N){sample(c(0.5, 1), size = N, replace = T)})
   data$X <- I(X)
   data$Z <- I(Z)
   data_lst[[iter]] <- data
@@ -271,6 +271,7 @@ for(iter in 1:M){
   c_lst_train[[iter]] <- c_mat_train
   c_lst_test[[iter]] <- c_mat_test
   
+  print(iter)
   setTxtProgressBar(pb, value=iter)
 }
 

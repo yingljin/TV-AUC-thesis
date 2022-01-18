@@ -112,9 +112,9 @@ Here we discuss a number of estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)
 ### Concordance
 
 1. Integrated estimated $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$:
-\begin{align*}
+$$\begin{align*}
 \text{C} &= \int_0^\tau\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)w^{\tau(t)}dt
-\end{align*}
+\end{align*}$$
 recall that estimating $w^{\tau}(t)$ requires estimates of $S(t)$ and $f(t)$. So, this estimator of concordance requires estimates for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, $S(t)$, and $f(t)$. These quantities are evaluated at each observed event time, and then integrated numerically using, for example, the trapezoidal rule. <br /> There are various approaches for estimating each of these quantities. For simplicity of presentation we will defer the detials on estimating $f(t)$ and $S(t)$ to the manuscript and focus here on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, we consider two estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, a semi-paramtric estimator and a non-parametric estimator. These are discussed in the section on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ below. 
 
 
@@ -125,9 +125,9 @@ C &= \frac{2}{n(n-1)}\sum_{i<j}{\frac{I(\eta_j-\eta_i<0)}{1+exp(\eta_j-\eta_i)}+
 In addition to observed quantities, the Gonen & Heller estimator of Concordance requires only estimates of risk ($\eta_i$). Note that the Gonen & Heller estimator has terms of the form $e^{\eta}$ in the denominator.
 
 3. Harrel's C-index:
-\begin{align*}
+$$\begin{align*}
 C &= \frac{\sum_{i<j}I(T_i<T_j)I(\eta_i>\eta_j)I(\delta_i=1)+I(T_i>T_j)I(\eta_i<\eta_j)I(\delta_i=1)}{\sum_{i<j}I(T_i<T_j)I(\delta_i=1)+I(T_i>T_j)I(\delta_i=1)}
-\end{align*}
+\end{align*}$$
 In addition to observed quantities, the Harrell's estimator of Concordance requires only estimates of risk ($\eta_i$) and is fully non-parametric.
 
 ### $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ 
@@ -139,15 +139,18 @@ Of those methods considered here, all use a non-parametric estimator for dynamic
 However, the non-parametric estimator of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ turns out to be highly variable since in practice we generally observe only a few (or even a single) events at  a given $t$. Thus, we propose an additional non-paramteric estimator of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ which is a smoothed version of the non-parametric estimator based on regression splines. We describe the smoothed estimator in more detail below. 
 
 * Estimator of dynamic specificity: For a fixed threshold $c$, we estimate the false positive rate (1-incident specificity) as
-\begin{align*}
+
+$$\begin{align*}
 \hat{\text{FP}_t}^{\mathbb{D}}(c) &= \frac{\sum_{k}I(\eta_k>c)I(T_k>t)}{\sum_{j}I(T_j>t)}
-\end{align*}
+\end{align*}$$
 
 * Estimators of incident sensitivity 
     + Semi-parametric
-    \begin{align*}
+    
+$$\begin{align*}
     \hat{\text{TP}_t}^{\mathbb{I}}(c)&=\frac{\sum_{k}I(\eta_k>c)I(T_k=t)exp(\eta_t)}{\sum_{j}I(T_j=t)exp(\eta_j)}
-    \end{align*}
+    \end{align*}$$
+    
     + Non-parametric: The non-parametric estimator of incident sensitivity is presented beelow. Note that because there are relatively few inidividuals with $T_i = t$ for a given $t$, this estimator is highly variable.
     \begin{align*}
     \hat{\text{TP}_t}^{\mathbb{I}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k=t)}{\sum_{j}I(T_j=t)}

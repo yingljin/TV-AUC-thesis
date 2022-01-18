@@ -15,6 +15,8 @@ set.seed(818)
 library(here)
 library(tidyverse)
 library(ggplot2)
+library(kableExtra)
+
 ```
 
 
@@ -167,12 +169,11 @@ At each unique observed event time $t$, we have estimates of $\hat{\text{TP}_t}^
 
 The simulation study presented here is designed to illustrate the undesirable properties of semi-parametric estimators of both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$. 
 
-- 1000 iterations, sample size = 500
-- Signals $X = (X_1, X_2, X_3)$, $X_i \overset{i.i.d}{\sim} N(0, 1)$; true coefficients $\beta = (1, -1, 0.25)$; biomarker $\eta = \beta X$
-- Event time generated from Weibull baseline hazard
-- Censor time generated from exponential distribution, with maximum censor time $\tau = 1$
+For each of the 1000 simulated data sets with sample size N = 500, we generated three covariates independently from standard normal distribution and set the true value of coefficients to be (1, -1, 0.25). Therefore, the risk score $\eta = \boldsymbol{X\beta}$ follows a normal distribution with mean = 0 and variance of 2.0625. The survival time $T$ is generated from a propotional hazard model with  Weibull baseline hazard $\lambda_0(t) = p\lambda t^{p-1}$, thus the baseline survival function $S_0(t) = exp(-\lambda p^t)$, and survival function conditioning on covariate value is $logS(t|\boldsymbol{X}) = exp(\boldsymbol{X\beta})logS_0(t)$. In addition, the censor time is set to be 1, which is independent with survival time. 
+
 
 ## Preliminary results
+
 
 ```{r}
 load(here("outputData/true_values.RData"))
@@ -220,6 +221,8 @@ auc_df %>%
   geom_point(na.rm = T, size = 0.5, alpha = 0.5)+
   labs(title = "Time-varying AUC")
 ```
+
+From the figure below, both semi- and non-parametric estimators are unbiased and close to the true when the model is specified correctly, while smoothed non-parametric estimator seems to underestimated true discriminative performance at the begining and end of follow-up period, but overestimate in the middle. However, as we include more noise signals in the model, both in-sample and out-of-sample semi-parametric estimates are significantly inflated and higher than the true $AUC(t)$, indicating overestimation of the discriminative performance of underlying models.
 
 ```{r}
 p1 <- auc_df %>% dplyr::select(time, contains("_eta1"), true, sample) %>%
@@ -279,6 +282,8 @@ auc_df %>%
 ```
 
 
+From the figure below, all estimators of concordance are unbiased when the model is specified correctly. The concordance from integrating non-parametric TV-AUC estimator weighted by estimated survival function (NP_S) is more variable, which is mitigated by smoothing the survival function (NP_SmS). However, as more noise signals are included in the model, all the semi-parametric estimators (Gonen-Heller, HZ_S and HZ_SmS) are also significantly inflated above the truth, while the fully non-parametric onces see regular overfit to the training data. 
+
 ```{r, out.width='100%'}
 c_df_train$estimator <- factor(c_df_train$estimator, levels = levels(c_df_train$estimator),
                          labels = c("Harrel's C", "Gonen-Heller", "HZ_S",
@@ -316,6 +321,34 @@ c_df_test %>%  ggplot(aes(x = estimator, y = concordance))+
   facet_wrap(~signal)+
   labs(title = "Out of sample concordance")
 ```
+
+## Summary
+
+```{r}
+compare_auc <- cbind(c("Semi-parametric (HZ)", "Non-parametric", "Smoothed non-parametric"),
+                          c("No bias", "Bias", "Underestimated at edges but overestimated in the middle"),
+                          c("Small", "Large", "Medium"),
+                          c("Inflation", "No inflation", "No inflation"))
+
+colnames(compare_auc) <- c("Estimator", "Bias under true model", "Variability", "Inflation with noise") 
+  
+compare_auc %>% kable(escape = F) %>%
+  kable_styling()
+```
+```{r}
+compare_c <- data.frame(Estimator = c("Harrel's C", "Gonen-Heller", 
+                                      "HZ_S","HZ_SmS",
+                                      "NP_S","NP_SmS",
+                                      "SNP_S","SNP_SmS"))
+
+compare_c[, 'Bias under true model'] <- c(rep("No bias", 4), "Overestimation", rep("No bias", 3))
+compare_c[, 'Variability'] <- c(rep("Small", 4), "Large", rep("Small", 3))
+compare_c[, 'Inflation with noise'] <- c("No inlfation", rep("Inflation", 3), rep("No inflation", 4))
+
+compare_c %>% kable(escape = F) %>%
+  kable_styling()
+```
+
 
 Note: 
 
