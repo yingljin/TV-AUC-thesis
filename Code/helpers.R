@@ -89,6 +89,7 @@ calc_c <- function(marker, Stime, status){
 }
 
 #### calculate concordance weighted by estimated survival probability and density ####
+
 intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, Ct=NULL, k=30,...){
   ut <- utimes
   # estimate survival probablity

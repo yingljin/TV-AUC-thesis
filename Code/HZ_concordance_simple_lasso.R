@@ -214,18 +214,28 @@ roc_HZ05_eta_fake <- CoxWeights(marker=marker_fake, Stime=time_fake,
 
 # transform the data to ggplot friendly format
 data_plt <- data.frame("Estimator" = paste0("Haegerty and Zheng 2005: t = ", round(ti,2)), 
-                          "Model" = c(rep("True Model", length(roc_HZ05_eta1$FP)),
-                                      rep("True Model + 1 Fake Outlier", length(roc_HZ05_eta_fake$FP))),
+                          "Model" = c(rep("Original data", length(roc_HZ05_eta1$FP)),
+                                      rep("Original data with 1 Outlier", length(roc_HZ05_eta_fake$FP))),
                           "TP" = c(roc_HZ05_eta1$TP,roc_HZ05_eta_fake$TP), 
                           "FP" = c(roc_HZ05_eta1$FP,roc_HZ05_eta_fake$FP))
 
+table(data_plt$Model)
+
 # separate data frame for adding text to the plot (estimated AUC)
 data_text <- data.frame("Estimator" = rep(paste0("Haegerty and Zheng 2005: t = ", round(ti,2)),2),
-                        "Model" = c("True Model", "True Model + 1 Fake Outlier"), 
+                        "Model" = c("Original data", "Original data with 1 Outlier"), 
                         "label" = paste0("AUC = ",round(c(roc_HZ05_eta1$AUC, roc_HZ05_eta_fake$AUC),3)),
                         "xind" = rep(0.75, 2),
                         "yind" = c(0.15,0.25))
 
+
+data_plt %>% 
+    ggplot() + 
+    geom_line(aes(x=FP, y=TP, color=Model)) + 
+    theme_bw() +
+    geom_text(data=data_text, mapping = aes(x = xind, y =yind, label = label,color=Model)) + 
+    xlab("False Positive Rate") + ylab("True Positive Rate") + 
+    ggtitle("Incident/Dynamic ROC Curve at a single time point \n Comparing Estimated Results when Adding in A Single Outlier ")
 
 figure_path <- "~/Desktop"
 jpeg(file.path(figure_path, "concordance_1_face_observation.jpeg"),height=400,width=550,quality=100)
