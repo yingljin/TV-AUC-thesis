@@ -22,13 +22,13 @@ library(kableExtra)
 
 # Introduction
 
-Time-dependent AUC and concordance are commonly used criteria for evaluating the discriminative performance of time-to-event models. These criteria are used in practice for both variable/model selection and comparing the performance of various models across studies [insert references]. It has been shown that Concordance ($C$), a global measure of discrimination, is a weighted average of time-varying incident/dynamic AUC ($\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$) (Heagerty and Zheng, 2005). Several commonly used estimators of both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ suffer from a previously unidentified shortcoming which renders them fundamentally unsuitable for assessing out-of-sample discrimination (e.g. cross-validation, test-train-validation). Specifically, there is a potential for out-of-sample discrimination to be **vastly overestimated**, an issue that is very rarely seen in practice. Bringing attention to this issue and proposing an alternative framework is crucial for applied work. Correspondingly, the goals of the current work are to: 
+Time-dependent AUC and concordance are commonly used criteria for evaluating the discriminative performance of time-to-event models. These criteria are used in practice for both variable/model selection and comparing the performance of various models across studies. It has been shown that Concordance ($C$), a global measure of discrimination, is a weighted average of time-varying incident/dynamic AUC ($\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$) (Heagerty and Zheng, 2005). Several commonly used estimators of both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ suffer from a previously unidentified shortcoming which renders them fundamentally unsuitable for assessing out-of-sample discrimination (e.g. cross-validation, test-train-validation). Specifically, there is a potential for out-of-sample discrimination to be **vastly overestimated**, an issue that is very rarely seen in practice. Bringing attention to this issue and proposing an alternative framework is crucial for applied work. Correspondingly, the goals of the current work are to: 
 
 1. Highlight and show via a comprehensive simulation study that certain classes of estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ are unsuitable for assessing out-of-sample discrimination
 
 2. Propose a set of estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$  suitable for out-of-sample discrimination and develop a corresponding inferential framework 
 
-Briefly, both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ use observed event/censoring times ($T_i, \delta_i$) and estimates of risk ($\eta_i(t)$) obtained from, for example, Cox regression, to determine whether individuals with higher estimated risk tend to have earlier event times. The issue with certain estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ is that the presence of outlying estimated risk ($\eta_i(t)$) can result in massive, unjustified shifts in estimated discrimination. To illustrate the magnitude of this issue, the Figure below plots an ROC curve for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ created using the Heagerty \& Zheng (2005) estimator on simulated data, predicting out-of-sample $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ on $N=500$ (red line) versus $N=501$ (blue line) participants. The one additional participant is an extreme outlier in predicted risk. The inclusion of one additional participant's data shifts estimated AUC from $\approx 0.81$ to $\approx 1$, which is clearly implausible in the context of $500$ other data points.
+Briefly, both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ use observed event/censoring times ($T_i, \delta_i$) and estimates of risk ($\eta_i(t)$) obtained from, for example, Cox regression, to determine whether individuals with higher estimated risk tend to have earlier event times. The issue with certain estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$ is that the presence of outlying estimated risk ($\eta_i(t)$) can result in massive, unjustified shifts in estimated discrimination. To illustrate the magnitude of this issue, the Figure below plots an ROC curve for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ created using the Heagerty \& Zheng (2005) estimator on simulated data, estimating prediction performance using $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ on $N=500$ participants. The two data sets (red line versus blue line ) differ in only one extreme outlier in covariates. The inclusion of one outlier participant's data shifts estimated AUC from $\approx 0.81$ to $\approx 1$, which is clearly implausible in the context of $500$ other data points.
 
 ```{r, echo=FALSE, fig.align = 'center', out.width='500px', out.height='400px'}
 knitr::include_graphics("../screenshots/outlierauc.png")
@@ -64,7 +64,7 @@ where $\log \lambda_i(t|\boldsymbol{X}_i)$ is the conditional log-hazard for sub
 ### Incident/Dynamic AUC
 
 
-The first estimand we discuss Incident/Dynamic AUC. Let $S(t)$ be the marginal survival function of event times (not conditional on covariates) and $f(t)$ is the corresponding density function. At a fixed time point $t$ and a specific threshold for risk score $c$, $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ itself is defined by incident sensitivity and dynamic specificity defined as follows:
+The first estimand we discuss is Incident/Dynamic AUC. Let $S(t)$ be the marginal survival function of event times (not conditional on covariates) and $f(t)$ is the corresponding density function. At a fixed time point $t$ and a specific threshold for risk score $c$, $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ itself is defined by incident sensitivity and dynamic specificity defined as follows:
 
 $$\begin{align*}
     \text{sensitivity}^{\mathbb{I}}(c,t) = & \text{TP}_t^{\mathbb{I}}(c) = \text{Pr}(\eta_i > c|T_i^* = t) \\
@@ -119,7 +119,7 @@ Here we discuss a number of estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)
 
 ### Incident/dynamic AUC
 
-Estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$  evaluate incident sensitivity ($\text{Pr}(\eta_i > c | T_i = t)$) and dynamic specificity ($\text{Pr}(\eta_i \leq c | T_i > t)$) at each unique value of the biomarker among those individuals still in the risk set at time $t$ ($\{\eta_i: T_i \geq t\}$). 
+Estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$  evaluate incident sensitivity ($\text{Pr}(\eta_i > c | T_i^* = t)$) and dynamic specificity ($\text{Pr}(\eta_i \leq c | T_i ^*> t)$) at each unique value of the biomarker among those individuals still in the risk set at time $t$ ($\{\eta_i: T_i \geq t\}$). 
 
 Of those methods considered here, all use a non-parametric estimator for dynamic specificity. In practice this works well as, for most $t$, there are a substantial number of individuals with $T_i > t$. The estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ differ in how they estimate incident sensitivity. Specifically, there is a semi-parametric estimator proposed by Heagerty and Zheng (2005) and a non-parametric estimator. We refer to these estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ as the "HZ" and "NP" estimators, respectively.
 
@@ -135,7 +135,7 @@ $$\hat{\text{FP}}_t^{\mathbb{D}}(c) = \frac{\sum_{k}I(\eta_k>c)I(T_k>t)}{\sum_{j
 
 $$\hat{\text{TP}_t}^{\mathbb{I}}(c)=\frac{\sum_{k}I(\eta_k>c)I(T_k\geq t)exp(\eta_k)}{\sum_{j}I(T_j\geq t)exp(\eta_j)}$$
 
-The formula above helps use to understand why an extreme outlier can cause significant overestimation of out-of-sample $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, the term $exp(\eta_k)$ would be very large for the outlying observation, driving its weight $\frac{exp(\eta_k)}{\sum_{j}I(T_j\geq t)exp(\eta_j)}$ close to 1. Therefore, the estimated true positive rate is overestimated because the importance of this outlier is unreasonably inflated. 
+The formula above helps us understand why an extreme outlier can cause significant overestimation of out-of-sample $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, the term $exp(\eta_k)$ would be very large for the outlying observation, driving its weight $\frac{exp(\eta_k)}{\sum_{j}I(T_j\geq t)exp(\eta_j)}$ close to 1. Therefore, the semi-parametric true positive rate is overestimated because the importance of this outlier is unreasonably inflated. 
 
 
 - Non-parametric: The non-parametric estimator of incident sensitivity is presented below. Note that because there are relatively few inidividuals with $T_i = t$ for a given $t$, this estimator is highly variable.
@@ -152,7 +152,7 @@ $$\begin{align*}
 \text{C}^\tau &= \int_0^\tau\hat{\text{AUC}}^{\mathbb{I}/\mathbb{D}}(t)\hat{w}^{\tau}(t)dt\;,
 \end{align*}$$
 
-recall that estimating $w^{\tau}(t)$ requires estimates of $S(t)$ and $f(t)$. So, this estimator of concordance requires estimates for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, $S(t)$, and $f(t)$. These quantities are evaluated at each observed event time, and then integrated numerically using, for example, the trapezoidal rule. There are various approaches for estimating each of these quantities. For simplicity of presentation we will defer the detials on estimating $f(t)$ and $S(t)$ to the manuscript and focus here on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, we consider two estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, a semi-paramtric estimator (HZ) and a non-parametric estimator. These are discussed in the section on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ below. 
+recall that estimating $w^{\tau}(t)$ requires estimates of $S(t)$ and $f(t)$. So, this estimator of concordance requires estimates for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, $S(t)$, and $f(t)$. These quantities are evaluated at each observed event time, and then integrated numerically using, for example, the trapezoidal rule. There are various approaches for estimating each of these quantities. For simplicity of presentation we will defer the detials on estimating $f(t)$ and $S(t)$ to the manuscript and focus here on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, we consider two estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, a semi-paramtric estimator (HZ) and a non-parametric estimator, which are discussed in the previous section. 
 
 2. Gonen & Heller (2005):
 
@@ -172,7 +172,9 @@ In addition to observed quantities, the Harrell's estimator of Concordance requi
 
 The simulation study presented here is designed to illustrate the undesirable properties of semi-parametric estimators of both $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and $C$. 
 
-For each of the 1000 simulated data sets with sample size N = 500, we generated three covariates $\boldsymbol{X} = (X_1, X_2, X_3)$ independently from standard normal distribution and set the true value of coefficients to be (1, -1, 0.25). Therefore, the risk score $\eta = \boldsymbol{X\beta}$ follows a normal distribution with mean = 0 and variance of 2.0625. The survival time $T$ is generated from a propotional hazard model with Weibull baseline hazard $\lambda_0(t) = p\lambda t^{p-1}$, thus the baseline survival function $S_0(t) = exp(-\lambda p^t)$, and survival function conditioning on covariates is $logS(t|\boldsymbol{X}) = exp(\boldsymbol{X\beta})logS_0(t)$. In addition, the censor time is generated independently from survival time and uniformly between (0.5, 1). 
+For each of the 1000 simulated data sets with sample size N = 500, we generated three covariates $\boldsymbol{X} = (X_1, X_2, X_3)$ independently from standard normal distribution and set the true value of coefficients to be (1, -1, 0.25). Therefore, the risk score $\eta = \boldsymbol{X^t\beta}$ follows a normal distribution with mean = 0 and variance of 2.0625. The survival time $T$ is generated from a propotional hazard model with Weibull baseline hazard $\lambda_0(t) = p\lambda t^{p-1}$, thus the baseline survival function $S_0(t) = exp(-\lambda p^t)$, and survival function conditioning on covariates is $logS(t|\boldsymbol{X}) = exp(\boldsymbol{X^t\beta})logS_0(t)$. In addition, the censor time is generated independently from survival time and uniformly between (0.5, 1). 
+
+To investigate the effect of noise on estimators, we constructed three different models: 1) model correctly specified with the three covariates; 2) model with 20 additional noise, generated identically and independently with covariate; and 3) model with 100 additional noise signals. The additional noise signals are not associated with outcome, thus should not contributed to the discriminative performance of underlying models. Therefore the true AUC and concordance values should not change across three models. 
 
 We also introduce the following abbreviations for estimators:
 
@@ -265,9 +267,7 @@ compare_c %>% kable(escape = F, caption = "Summary of concordance estimators", a
   kable_styling()
 ```
 
-Here we present more detailed results from simulation. To investigate the effect of noise on estimators, we constructed three different models: 1) model correctly specified with the three covariates; 2) model with 20 additional noise, generated identically and independently with covariate; and 3) model with 100 additional noise signals. The additional noise signals are not associated with outcome, thus should not contributed to the discriminative performance of underlying models. Therefore the true AUC and concordance values should not change across three models. 
-
-For the purpose of better presentation, incident/dynamic AUC estimates across all simulation is smoothed over time with generalized additive model in the figure below, since the event times generated in each simulation are different. As is revealed, both semi- and non-parametric estimators are unbiased and close to the true when the model is specified without noise, while smoothed non-parametric estimator seems to underestimate true discriminative performance at the beginning and end of follow-up period, but overestimate in the middle. However, as we include more noise signals in the model, both in-sample and out-of-sample semi-parametric estimates are significantly inflated to be much higher than the truth, indicating overestimation of the discriminative performance of underlying models.
+Below we present more detailed results from simulation. For the purpose of better presentation, incident/dynamic AUC estimates across all simulation is smoothed over time with generalized additive model in the following figure, since the event times generated in each simulation are different. As is revealed, both semi- and non-parametric estimators are unbiased and close to the true when the model is specified without noise, while smoothed non-parametric estimator seems to underestimate true discriminative performance at the beginning and end of follow-up period, but overestimate in the middle. However, as we include more noise signals in the model, both in-sample and out-of-sample semi-parametric estimates are significantly inflated to be much higher than the truth, indicating overestimation of the discriminative performance of underlying models.
 
 ```{r}
 p1 <- auc_df %>% dplyr::select(time, contains("_eta1"), true, sample) %>%
@@ -279,7 +279,7 @@ p1 <- auc_df %>% dplyr::select(time, contains("_eta1"), true, sample) %>%
               se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
   geom_line(aes(x = time, y = true), na.rm = T)+
   facet_wrap(~estimator)+
-  labs(title = "No noise")
+  labs(title = "No noise", x = "Time", y = "AUC")
 ```
 
 ```{r}
@@ -292,7 +292,7 @@ p2 <- auc_df %>% dplyr::select(time, contains("_eta2"), true, sample) %>%
               se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
   geom_line(aes(x = time, y = true), na.rm = T)+
   facet_wrap(~estimator)+
-  labs(title = "20 noise signals")
+  labs(title = "20 noise signals", x = "Time", y = "AUC")
 ```
 
 ```{r}
@@ -305,7 +305,7 @@ p3 <- auc_df %>% dplyr::select(time, contains("_eta3"), true, sample) %>%
               se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
   geom_line(aes(x = time, y = true), na.rm = T)+
   facet_wrap(~estimator)+
-  labs(title = "100 noise signals")
+  labs(title = "100 noise signals", x = "Time", y = "AUC")
 ```
 
 ```{r, fig.width=8, fig.height=8}
@@ -329,7 +329,7 @@ auc_df %>%
 
 From the figure below, most estimators of concordance are unbiased when the model is specified correctly. However, the Harrell' c-index and concordance from integrating non-parametric $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ estimator with weights from estimated Kaplan-Meier curve (NP_S) is biased upwards. The non-parametric estimators are also more variable, but smoothing the survival curve for integral can significantly reduce there variability (NP_SmS). It is also worth noting that the out-of-sample bias of Harrell's c and NP_S is smaller than in-sample bias. However, as more noise signals are included in the model, all the semi-parametric estimators (Gonen-Heller, HZ_S and HZ_SmS) are also significantly inflated above the truth, and the fully non-parametric estimators overfit to the training data. 
 
-```{r, out.width='100%'}
+```{r, out.width='100%', message=FALSE, warning=FALSE}
 c_df_train$estimator <- factor(c_df_train$estimator, levels = levels(c_df_train$estimator),
                          labels = c("Harrell's C", "Gonen-Heller", "HZ_S",
                                     "HZ_SmS",
@@ -337,38 +337,63 @@ c_df_train$estimator <- factor(c_df_train$estimator, levels = levels(c_df_train$
                                     "NP_SmS",
                                     "SNP_S",
                                     "SNP_SmS"))
+c_df_train$estimator <- factor(c_df_train$estimator,
+                               levels =  c("Gonen-Heller", "HZ_S", "HZ_SmS",
+                                           "Harrell's C", "NP_S","NP_SmS","SNP_S", "SNP_SmS"))
+# color by proporty
+c_df_train$prop <- as.factor(ifelse(c_df_train$estimator %in% c("Gonen-Heller", "HZ_S", "HZ_SmS"), 
+                          "Semi-parametric", "Non-parametric"))
+text_col <- c(rep("#00BFC4", 3), rep("#F8766D", 5))
+
+
 c_df_train$signal <- factor(c_df_train$signal, levels = levels(as.factor(c_df_train$signal)),
                            labels = c("No noise", "20 noise", "100 noise"))
 
-c_df_train %>%  ggplot(aes(x = estimator, y = concordance))+
-  geom_boxplot()+
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.5))+
+
+pc1 <- c_df_train %>%  ggplot(aes(x = estimator, y = concordance))+
+  geom_boxplot(aes(fill = prop))+
+  theme(axis.text.x = element_text(angle = 70, vjust = 0.5, color = text_col), 
+        legend.title = element_blank())+
   geom_hline(yintercept = true_c, col = "red")+
   facet_wrap(~signal)+
-  labs(title = "In-sample concordance")
+  labs(title = "In-sample concordance", x = "", y = "Concordance")
+
 ```
 
-```{r, out.width='100%'}
+```{r, out.width='100%', message=FALSE, warning=FALSE}
 c_df_test$estimator <- factor(c_df_test$estimator, levels = levels(c_df_test$estimator),
-                         labels = c("Harrel's C", "Gonen-Heller", "HZ_S",
+                         labels = c("Harrell's C", "Gonen-Heller", "HZ_S",
                                     "HZ_SmS",
                                     "NP_S",
                                     "NP_SmS",
                                     "SNP_S",
                                     "SNP_SmS"))
+c_df_test$estimator <- factor(c_df_test$estimator,
+                               levels =  c("Gonen-Heller", "HZ_S", "HZ_SmS",
+                                           "Harrell's C", "NP_S","NP_SmS","SNP_S", "SNP_SmS"))
+c_df_test$prop <- as.factor(ifelse(c_df_test$estimator %in% c("Gonen-Heller", "HZ_S", "HZ_SmS"), 
+                          "Semi-parametric", "Non-parametric"))
 
 c_df_test$signal <- factor(c_df_test$signal, levels = levels(as.factor(c_df_test$signal)),
                            labels = c("No noise", "20 noise", "100 noise"))
-c_df_test %>%  ggplot(aes(x = estimator, y = concordance))+
-  geom_boxplot()+
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.5))+
+pc2 <- c_df_test %>%  ggplot(aes(x = estimator, y = concordance))+
+  geom_boxplot(aes(fill = prop))+
+  theme(axis.text.x = element_text(angle = 70, vjust = 0.5, color = text_col),
+        legend.title = element_blank())+
   geom_hline(yintercept = true_c, col = "red")+
   facet_wrap(~signal)+
-  labs(title = "Out of sample concordance")
+  labs(title = "Out of sample concordance", x = "", y = "Concordance")
 ```
 
+```{r, fig.width=10, fig.height=5}
+ggpubr::ggarrange(pc1, pc2, nrow = 1, common.legend = T)
+```
 
+# Discussion
 
+We would like to further investigate how variable selection methods (e.g. ridge regression) would affect estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and concordance. Since out-of-sample inflation was caused by model overfit to the training data, we anticipate using LASSO or ridge regression in model fit would metigate this inflation. 
+
+We would also attempt to mitigate bias of smoothed non-parametric estimator (SNP) of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. One possible cause for bias is the skewed distribution of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, which also seems to be bounded and centered around a specific value with small variance. We have found so far that neither transformation of outcome nor weighted regression by variance was helpful, while use a bounded regression  in smoothing (e.g. beta distribution) led to slight improvement. In addition, while non-parametric concordance seems to have upward bias, smoothness of survival function for weights of integral of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ seems to reduce such bias. The reason for this phenomina is not clear to us.
 
 # References
 
