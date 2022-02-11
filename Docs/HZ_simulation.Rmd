@@ -447,6 +447,8 @@ $$\begin{align*}
             &\approx \sum_l \delta_l \text{TP}_t^{\mathbb{I}}\{[\text{FP}_t^{\mathbb{D}}]^{-1}(l)\}
 \end{align*}$$
 
+Where $\delta_i$ is the quadrature weight. 
+
 In practice, there is a huge computational burden to evaluate $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ at all unique event times generated across all 1000 simulations. Therefore, we have evaluated the true value on 500 distinct time points that are equally spaced between 0 and 1 (which is the range of follow-up time in our simulation setting), and used interpolation to estimate values in between. 
 
 

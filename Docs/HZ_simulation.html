@@ -1976,6 +1976,7 @@ No
             &amp;= \int_0^1\text{TP}_t^{\mathbb{I}}\{[\text{FP}_t^{\mathbb{D}}]^{-1}(p)\}dp \\
             &amp;\approx \sum_l \delta_l \text{TP}_t^{\mathbb{I}}\{[\text{FP}_t^{\mathbb{D}}]^{-1}(l)\}
 \end{align*}\]</span></p>
+<p>Where <span class="math inline">\(\delta_i\)</span> is the quadrature weight.</p>
 <p>In practice, there is a huge computational burden to evaluate <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span> at all unique event times generated across all 1000 simulations. Therefore, we have evaluated the true value on 500 distinct time points that are equally spaced between 0 and 1 (which is the range of follow-up time in our simulation setting), and used interpolation to estimate values in between.</p>
 </div>
 <div id="references" class="section level1">
