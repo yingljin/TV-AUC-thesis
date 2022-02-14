@@ -1937,11 +1937,11 @@ No
 <div id="discussion" class="section level1">
 <h1><span class="header-section-number">4</span> Discussion</h1>
 <p>We would like to further investigate how variable selection methods (e.g. ridge regression) would affect estimators of <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span> and concordance. Since out-of-sample inflation was caused by model overfit to the training data, we anticipate using LASSO or ridge regression in model fit would mitigate this inflation.</p>
-<p>We would also attempt to mitigate bias of smoothed non-parametric estimator (SNP) of <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span>. One possible cause for bias is the skewed distribution of <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span>, which seems to be bounded, skewed inter-correlated. We have found so far that neither transformation of outcome nor weighted regression by variance was helpful, while use a bounded regression in smoothing (e.g. beta distribution) led to slight improvement. In addition, while non-parametric concordance seems to have upward bias, smoothness of survival function for weights or AUC estimates itself seems to reduce such bias.</p>
+<p>We would also attempt to mitigate bias of smoothed non-parametric estimator (SNP) of <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span>. One possible cause for bias is the distribution of <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span>, which seems to be bounded, skewed and inter-correlated. We have found so far that neither transformation of outcome nor weighted regression by variance was helpful, while use a bounded regression in smoothing (e.g. beta distribution) led to slight improvement. In addition, while non-parametric concordance seems to have upward bias, it is not clear why smoothness of survival function for weights or AUC estimates itself seems to reduce such bias.</p>
 </div>
 <div id="methedological-contributions" class="section level1">
 <h1><span class="header-section-number">5</span> Methedological contributions</h1>
-<p>In this work, we have identified and illustrated a shortcoming of existing semi-parametric estimators of model discrimination, which can be misguide decision making in practice in may cases, such as model selection, prediction, etc. In addition, we have also attempted to propose alternative procedures for measure of discriminative performance. Specifically, we have introduced non-parametric estimators of <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span>, and concordance derived by integrating such estimates. However, such estimators can be highly variable in practice, which is not ideal for numeric integration. Therefore, we proposed “smoothed” estimation of either <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span> or survival functions with penalized regression splines as follows:</p>
+<p>In this work, we have identified and illustrated a shortcoming of existing semi-parametric estimators of model discrimination, which can be misleading for decision making in practice in may cases, such as model selection, prediction, etc. In addition, we have also attempted to propose alternative procedures for measure of discriminative performance. Specifically, we have introduced non-parametric estimators of <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span>, and concordance derived by integrating such estimates. However, such estimators can be highly variable in practice, which is not ideal for numeric integration. Therefore, we proposed “smoothed” estimation of either <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span> or survival functions with penalized regression splines as follows:</p>
 <p><strong>For Incident/Dynamic AUC:</strong></p>
 <p><span class="math display">\[\begin{align*}
 \widehat{\text{AUC}}^{\mathbb{I}/\mathbb{D}}(t) &amp;= 
@@ -1955,7 +1955,7 @@ No
 <li><p>Positivity <span class="math inline">\(S(t) &gt; 0\)</span></p></li>
 </ol>
 <p>We have also proposed a method for deriving true <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span>, and consequently concordance under this simulation setting. This problem is not trivial except for very simple cases. Here we propose a general solution.</p>
-<p>Since we have generated to data from proportional hazard model with a defined baseline hazard, we can write the conditional density of event time as <span class="math inline">\(f(t| \eta) = \lambda(t|\eta)S(t|\eta) = \lambda_0(t)S_0(t)exp(2\eta)\)</span>. Subsequently, we can derive the formulas for sensitivity (TP) and specificity (1-FP) based on Bayes’ rule:</p>
+<p>Since we have generated data from proportional hazard model with a defined baseline hazard, we can write the conditional density of event time as <span class="math inline">\(f(t| \eta) = \lambda(t|\eta)S(t|\eta) = \lambda_0(t)exp(\eta)S_0(t)^{exp(\eta)}\)</span>. Subsequently, we can derive the formulas for sensitivity (TP) and specificity (1-FP) based on Bayes’ rule:</p>
 <p><strong>Incident sensitivity:</strong></p>
 <p><span class="math display">\[\begin{align*}
 \text{Pr}(\eta_i &gt; c|T_i = t) 
@@ -1976,7 +1976,7 @@ No
             &amp;= \int_0^1\text{TP}_t^{\mathbb{I}}\{[\text{FP}_t^{\mathbb{D}}]^{-1}(p)\}dp \\
             &amp;\approx \sum_l \delta_l \text{TP}_t^{\mathbb{I}}\{[\text{FP}_t^{\mathbb{D}}]^{-1}(l)\}
 \end{align*}\]</span></p>
-<p>Where <span class="math inline">\(\delta_i\)</span> is the quadrature weight.</p>
+<p>Where <span class="math inline">\(\delta_l\)</span> is the quadrature weight.</p>
 <p>In practice, there is a huge computational burden to evaluate <span class="math inline">\(\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)\)</span> at all unique event times generated across all 1000 simulations. Therefore, we have evaluated the true value on 500 distinct time points that are equally spaced between 0 and 1 (which is the range of follow-up time in our simulation setting), and used interpolation to estimate values in between.</p>
 </div>
 <div id="references" class="section level1">
