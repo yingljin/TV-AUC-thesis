@@ -15,6 +15,7 @@ set.seed(818)
 library(here)
 library(tidyverse)
 library(ggplot2)
+library(ggpubr)
 library(kableExtra)
 
 ```
@@ -152,7 +153,7 @@ $$\begin{align*}
 \text{C}^\tau &= \int_0^\tau\hat{\text{AUC}}^{\mathbb{I}/\mathbb{D}}(t)\hat{w}^{\tau}(t)dt\;,
 \end{align*}$$
 
-recall that estimating $w^{\tau}(t)$ requires estimates of $S(t)$ and $f(t)$. So, this estimator of concordance requires estimates for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, $S(t)$, and $f(t)$. These quantities are evaluated at each observed event time, and then integrated numerically using, for example, the trapezoidal rule. There are various approaches for estimating each of these quantities. For simplicity of presentation we will defer the detials on estimating $f(t)$ and $S(t)$ to the manuscript and focus here on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, we consider two estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, a semi-paramtric estimator (HZ) and a non-parametric estimator, which are discussed in the previous section. 
+recall that estimating $w^{\tau}(t)$ requires estimates of $S(t)$ and $f(t)$. So, this estimator of concordance requires estimates for $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, $S(t)$, and $f(t)$. These quantities are evaluated at each observed event time, and then integrated numerically using, for example, the trapezoidal rule. There are various approaches for estimating each of these quantities. For simplicity of presentation we will defer the details on estimating $f(t)$ and $S(t)$ to the manuscript and focus here on estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. Specifically, we consider two estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, a semi-paramtric estimator (HZ) and a non-parametric estimator, which are discussed in the previous section. 
 
 2. Gonen & Heller (2005):
 
@@ -310,21 +311,127 @@ p3 <- auc_df %>% dplyr::select(time, contains("_eta3"), true, sample) %>%
 ```
 
 ```{r, fig.width=8, fig.height=8}
-ggpubr::ggarrange(p1, p2, p3, nrow = 3, ncol = 1, common.legend = T)
+tv_auc_plot <- ggarrange(p1, p2, p3, nrow = 3, ncol = 1, common.legend = T)
+annotate_figure(tv_auc_plot, bottom = "Note: black line indicates the true AUC value")
 ```
 
-```{r, eval=FALSE, fig.height=5, fig.width=10}
-brk <- seq(0, 1, 0.01)
-auc_df %>%
-  mutate(time_bin = cut(auc_df$time, breaks = brk, include.lowest = T,
-                       seq(0.005, 0.995, 0.01))) %>%
-  dplyr::select(-true) %>%
-  pivot_longer(2:5, names_to = "estimator", values_to = "auc") %>%
-  ggplot(aes(x = factor(time_bin), y = auc))+
+
+```{r compiled_tv_auc}
+p_hz <- auc_df %>% dplyr::select(time, contains("HZ"), true, sample) %>%
+  pivot_longer(2:4, names_to = "model", values_to = "auc") %>%
+  mutate(model = factor(model, levels = c("HZ_eta1", "HZ_eta2", "HZ_eta3"),
+                            labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
+  group_by(sample, model) %>%
+  ggplot()+
+  geom_smooth(aes(x = time, y = auc, col = model, linetype = sample), 
+              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
+  geom_line(aes(x = time, y = true), na.rm = T)+
+  labs(title = "Semi-parametric estimators", x = "Time", y = "AUC")+
+  coord_cartesian(ylim=c(0.6, 1))
+
+```
+
+
+```{r}
+p_np <- auc_df %>% dplyr::select(time, starts_with("empirical_"), true, sample) %>%
+  pivot_longer(2:4, names_to = "model", values_to = "auc") %>%
+  mutate(model = factor(model, 
+                        levels = c("empirical_eta1", 
+                                   "empirical_eta2", 
+                                   "empirical_eta3"),
+                            labels = c("No noise", 
+                                       "20 noise signals", 
+                                       "100 noise signals"))) %>%
+  group_by(sample, model) %>%
+  ggplot()+
+  geom_smooth(aes(x = time, y = auc, col = model, linetype = sample), 
+              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
+  geom_line(aes(x = time, y = true), na.rm = T)+
+  labs(title = "Non-parametric estimators", x = "Time", y = "AUC")+
+  coord_cartesian(ylim=c(0.6, 1))
+
+#range(auc_df$empirical_eta1[auc_df$sample == "in-sample"])
+
+```
+
+
+```{r}
+p_snp <- auc_df %>% dplyr::select(time, starts_with("sm_empirical_"), true, sample) %>%
+  pivot_longer(2:4, names_to = "model", values_to = "auc") %>%
+  mutate(model = factor(model, levels = c("sm_empirical_eta1", "sm_empirical_eta2", "sm_empirical_eta3"),
+                            labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
+  group_by(sample, model) %>%
+  ggplot()+
+  geom_smooth(aes(x = time, y = auc, col = model, linetype = sample), 
+              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
+  geom_line(aes(x = time, y = true), na.rm = T)+
+  labs(title = "Smoothed non-parametric estimators", x = "Time", y = "AUC")+
+  coord_cartesian(ylim=c(0.6, 1))
+```
+
+```{r}
+
+tv_auc_plot_compile <- ggarrange(p_hz,  p_np, p_snp, nrow = 1, ncol = 3, common.legend = T,
+                                 legend = "right")
+```
+
+```{r fig.width=6, fig.height=2}
+annotate_figure(tv_auc_plot_compile, bottom = "Note: black line indicates the true AUC value")
+```
+
+
+```{r tvauc_boxplots}
+brk <- seq(0, 1, 0.2)
+bp_in <- auc_df %>%
+  filter(sample=="in-sample") %>%
+  select(-true) %>%
+  mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
+  pivot_longer(3:11, names_to = "estimator", values_to = "auc") %>%
+  mutate(model = gsub("HZ_|empirical_|sm_empirical_", "", estimator)) %>%
+  mutate(estimator = gsub("_eta1|_eta2|_eta3", "", estimator)) %>%
+  mutate(model = factor(model, levels = c("eta1", "eta2", "eta3"),
+                        labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
+  mutate(estimator = factor(estimator, levels = c("HZ", "empirical", "sm_empirical"),
+                            labels = c("Semi-parametric", "Non-parametric", "Smoothed non-parametric"))) %>%
+  ggplot(aes(x = factor(time_bin), y = auc, fill = estimator))+
   geom_boxplot(outlier.size = 0.5)+
-  facet_wrap(~estimator, nrow = 4, ncol = 1)+
-  labs(x = "", title = "Distribution of estimated AUC")+
-  scale_x_discrete(breaks = c("0.005", "0.495", "0.995"))
+  facet_wrap(~model, nrow = 1, ncol = 3)+
+  labs(x = "Time", y = "AUC", title = "In-sample estimates")+
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
+  #scale_x_discrete(breaks = as.factor(c(0.1, 0.3, 0.5, 0.7, 0.9)))
+bp_in 
+```
+
+```{r}
+
+bp_out<- auc_df %>%
+  filter(sample=="out-of-sample") %>%
+  select(-true) %>%
+  mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
+  pivot_longer(3:11, names_to = "estimator", values_to = "auc") %>%
+  mutate(model = gsub("HZ_|empirical_|sm_empirical_", "", estimator)) %>%
+  mutate(estimator = gsub("_eta1|_eta2|_eta3", "", estimator)) %>%
+  mutate(model = factor(model, levels = c("eta1", "eta2", "eta3"),
+                        labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
+  mutate(estimator = factor(estimator, 
+                            levels = c("HZ", "empirical", "sm_empirical"),
+                            labels = c("Semi-parametric", "Non-parametric", "Smoothed non-parametric"))) %>%
+  ggplot(aes(x = factor(time_bin), y = auc, fill = estimator))+
+  geom_boxplot(outlier.size = 0.5)+
+  facet_wrap(~model, nrow = 1, ncol = 3)+
+  labs(x = "Time", y = "AUC", title = "Out-of-sample estimates")+
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
+
+bp_out
+```
+
+```{r}
+
+tv_auc_boxplot_compile <- ggarrange(bp_in,  bp_out, nrow = 1, ncol = 2, common.legend = T)
+```
+
+```{r, fig.width=7, fig.height=3}
+tv_auc_boxplot_compile
 ```
 
 
@@ -387,7 +494,8 @@ pc2 <- c_df_test %>%  ggplot(aes(x = estimator, y = concordance))+
 ```
 
 ```{r, fig.width=10, fig.height=5}
-ggpubr::ggarrange(pc1, pc2, nrow = 1, common.legend = T)
+c_plot <- ggarrange(pc1, pc2, nrow = 1, common.legend = T)
+annotate_figure(c_plot, bottom = "Note: red line indicates the true concordance")
 ```
 
 # Discussion
@@ -395,6 +503,8 @@ ggpubr::ggarrange(pc1, pc2, nrow = 1, common.legend = T)
 We would like to further investigate how variable selection methods (e.g. ridge regression) would affect estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and concordance. Since out-of-sample inflation was caused by model overfit to the training data, we anticipate using LASSO or ridge regression in model fit would mitigate this inflation. 
 
 We would also attempt to mitigate bias of smoothed non-parametric estimator (SNP) of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$. One possible cause for bias is the distribution of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, which seems to be bounded, skewed and inter-correlated. We have found so far that neither transformation of outcome nor weighted regression by variance was helpful, while use a bounded regression in smoothing (e.g. beta distribution) led to slight improvement. In addition, while non-parametric concordance seems to have upward bias, it is not clear why smoothness of survival function for weights or AUC estimates itself seems to reduce such bias. 
+
+For the dissertation project, the content in this report will be organized and expanded in the first paper, focusing on comparison of estimator properties on both simulated and real data. Our current plan for the second paper is to focus on eliminating the bias of smoothed non-parametric estimator. We aim to develop non-parametric estimators of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ and concordance that are unbiased, stable and with good asymptotic properties.
 
 # Methedological contributions
 
@@ -417,7 +527,7 @@ We used the same strategy for smoothing survival function, but with the followin
 
 3. Positivity $S(t) > 0$
 
-We have also proposed a method for deriving true $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, and consequently concordance under this simulation setting. This problem is not trivial except for very simple cases. Here we propose a general solution.
+We have also proposed a method for deriving true $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$, and consequently concordance under this simulation setting. This problem is not trivial except for very simple cases. Here we propose a general solution:
 
 Since we have generated data from proportional hazard model with a defined baseline hazard, we can write the conditional density of event time as $f(t| \eta) = \lambda(t|\eta)S(t|\eta) = \lambda_0(t)exp(\eta)S_0(t)^{exp(\eta)}$. Subsequently, we can derive the formulas for sensitivity (TP) and specificity (1-FP) based on Bayes' rule:
 
@@ -438,7 +548,7 @@ $$\begin{align*}
     &= \frac{\int_t^\infty \int_{-\infty}^c f(t|\eta)f(\eta) d\eta dt }{\int_t^\infty [\int f(t|\eta)f(\eta)d\eta] dt} \\
 \end{align*}$$
 
-Therefore, we could plot out the ROC curve at a specific time point, and get $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ through numeric integral over all possible thresholds of biomarker: 
+Therefore, we could plot out the ROC curve at a specific time point, and get $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ through integral over all possible thresholds of biomarker: 
 
 $$\begin{align*}
         \text{AUC}^{\mathbb{I}/\mathbb{D}}(t)
@@ -449,7 +559,7 @@ $$\begin{align*}
 
 Where $\delta_l$ is the quadrature weight. 
 
-In practice, there is a huge computational burden to evaluate $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ at all unique event times generated across all 1000 simulations. Therefore, we have evaluated the true value on 500 distinct time points that are equally spaced between 0 and 1 (which is the range of follow-up time in our simulation setting), and used interpolation to estimate values in between. 
+In practice, it is usually unrealistic to find closed-form solution for formulas above. Therefore, we have used numeric integration to calculate these quantities. It is a huge computational burden to evaluate $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ at all unique event times generated across all 1000 simulations. Therefore, we have evaluated the true value on 500 distinct time points that are equally spaced between 0 and 1 (which is the range of follow-up time in our simulation setting), and used interpolation to estimate values in between. 
 
 
 # References
