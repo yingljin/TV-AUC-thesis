@@ -391,8 +391,8 @@ bp_in <- auc_df %>%
   mutate(estimator = gsub("_eta1|_eta2|_eta3", "", estimator)) %>%
   mutate(model = factor(model, levels = c("eta1", "eta2", "eta3"),
                         labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
-  mutate(estimator = factor(estimator, levels = c("HZ", "empirical", "sm_empirical"),
-                            labels = c("Semi-parametric", "Non-parametric", "Smoothed non-parametric"))) %>%
+  mutate(estimator = factor(estimator, levels = c("HZ", "sm_empirical", "empirical"),
+                            labels = c("Semi-parametric", "Smoothed non-parametric", "Non-parametric"))) %>%
   ggplot(aes(x = factor(time_bin), y = auc, fill = estimator))+
   geom_boxplot(outlier.size = 0.5)+
   facet_wrap(~model, nrow = 1, ncol = 3)+
@@ -414,8 +414,8 @@ bp_out<- auc_df %>%
   mutate(model = factor(model, levels = c("eta1", "eta2", "eta3"),
                         labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
   mutate(estimator = factor(estimator, 
-                            levels = c("HZ", "empirical", "sm_empirical"),
-                            labels = c("Semi-parametric", "Non-parametric", "Smoothed non-parametric"))) %>%
+                            levels = c("HZ", "sm_empirical", "empirical"),
+                            labels = c("Semi-parametric", "Smoothed non-parametric", "Non-parametric"))) %>%
   ggplot(aes(x = factor(time_bin), y = auc, fill = estimator))+
   geom_boxplot(outlier.size = 0.5)+
   facet_wrap(~model, nrow = 1, ncol = 3)+
