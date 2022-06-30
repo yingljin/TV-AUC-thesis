@@ -198,46 +198,31 @@ est_df %>% kable(escape = F, align = "c") %>%
 
 ```{r}
 load(here("outputData/true_values.RData"))
-load(here("outputData/estimated_values.RData"))
-#load(here("outputData/weighted_gam_by_iter.RData"))
+# load(here("outputData/estimated_values.RData"))
+load(here("outputData/estimates_N_500.RData"))
 ```
 
 
 ```{r}
 # use interpolation to estimate true_auc
-interpolated_auc_train<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
-                         xout = auc_df_train$time)$y
-interpolated_auc_test<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
-                         xout = auc_df_test$time)$y
+# interpolated_auc_train<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
+#                          xout = auc_df_train$time)$y
+# interpolated_auc_test<-approx(x = true_auc_sort$time_bin,
+#                               y = true_auc_sort$auc, 
+#                               xout = auc_df_test$time)$y
 
-# plot(auc_df$time, interpolated_auc)
-auc_df_train$true <- interpolated_auc_train
-auc_df_test$true <- interpolated_auc_test
+interpolated_auc_<-approx(x = true_auc_sort$time_bin,
+                              y = true_auc_sort$auc,
+                              xout = auc_df$time)
 
-auc_df_train$sample = "in-sample"
-auc_df_test$sample = "out-of-sample"
-auc_df <- rbind(auc_df_train, auc_df_test)
+plot(interpolated_auc_$x, interpolated_auc_$y,
+     main = "True AUC", xlab = "time", ylab = "")
 
+auc_df$true <- interpolated_auc_$y
 # some more cleaning
 
 ```
 
-```{r eval=FALSE}
-auc_df %>% 
-  pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
-  ggplot(aes(x = time, y = auc, col = estimator))+
-  geom_line(alpha = 0.5)+
-  labs(title = "True time-varying AUC")
-```
-
-
-```{r eval=FALSE}
-auc_df %>% 
-  pivot_longer(2:6, names_to = "estimator", values_to = "auc") %>%
-  ggplot(aes(x = time, y = auc, group = estimator, col = estimator))+
-  geom_point(na.rm = T, size = 0.5, alpha = 0.5)+
-  labs(title = "Time-varying AUC")
-```
 
 The properties of estimators are summarized in the two tables below. 
 
@@ -271,232 +256,69 @@ compare_c %>% kable(escape = F, caption = "Summary of concordance estimators", a
 
 Below we present more detailed results from simulation. For the purpose of better presentation, incident/dynamic AUC estimates across all simulation is smoothed over time with regression splines in the following figure, since the event times generated in each simulation are different. As is revealed, both semi- and non-parametric estimators are unbiased and close to the truth when the model is specified without noise, while smoothed non-parametric estimator seems to underestimate true discriminative performance at the beginning and end of follow-up period, but overestimate in the middle. However, as we include more noise signals in the model, both in-sample and out-of-sample semi-parametric estimates are significantly inflated to be much higher than the truth, and out-of-sample estimates are even higher than in-sample, indicating overestimation of the discriminative performance of underlying models.  
 
-```{r}
-p1 <- auc_df %>% dplyr::select(time, contains("_eta1"), true, sample) %>%
-  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
-  mutate(estimator = factor(estimator, levels = c("HZ_eta1", "empirical_eta1", "sm_empirical_eta1"),
-                            labels = c("HZ", "NP", "SNP"))) %>%
-  ggplot()+
-  geom_smooth(aes(x = time, y = auc, group = sample, col = sample), 
-              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
-  geom_line(aes(x = time, y = true), na.rm = T)+
-  facet_wrap(~estimator)+
-  labs(title = "No noise", x = "Time", y = "AUC")
+```{r format}
+# AUC
+auc_df$sample <- factor(auc_df$sample, levels = 1:2, 
+                        labels = c("In-sample", "Out-of-sample"))
+auc_df_long <- auc_df %>%
+  pivot_longer(4:6, names_to = "Estimator", values_to = "AUC") %>%
+  mutate(Estimator = factor(Estimator, 
+                            levels = c("HZ", "SNP", "NP")),
+         model = factor(model,
+                        levels = c("No noise", "20 noise", "100 noise")))
+
+# concordance
+c_df$sample <- factor(c_df$sample, levels = 1:2, 
+                        labels = c("In-sample", "Out-of-sample"))
+c_df_long <- c_df %>% 
+  pivot_longer(3:7, names_to = "Estimator", values_to = "Concordance" ) %>%
+  mutate(Estimator = factor(Estimator,
+                            levels = c("HZ","GH", "Harrell.s","NP","SNP"),
+                            labels = c("HZ","GH", "Harrell","NP","SNP")),
+          model = factor(model,
+                        levels = c("No noise", "20 noise", "100 noise")),
+         Type = ifelse(Estimator=="HZ"|Estimator=="GH", "Semi-parametrc", 
+                       "Non-parametric"))
 ```
 
-```{r}
-p2 <- auc_df %>% dplyr::select(time, contains("_eta2"), true, sample) %>%
-  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
-  mutate(estimator = factor(estimator, levels = c("HZ_eta2", "empirical_eta2", "sm_empirical_eta2"),
-                            labels = c("HZ", "NP", "SNP"))) %>%
-  ggplot()+
-  geom_smooth(aes(x = time, y = auc, group = sample, col = sample), 
-              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
-  geom_line(aes(x = time, y = true), na.rm = T)+
-  facet_wrap(~estimator)+
-  labs(title = "20 noise signals", x = "Time", y = "AUC")
-```
-
-```{r}
-p3 <- auc_df %>% dplyr::select(time, contains("_eta3"), true, sample) %>%
-  pivot_longer(2:4, names_to = "estimator", values_to = "auc") %>%
-  mutate(estimator = factor(estimator, levels = c("HZ_eta3", "empirical_eta3", "sm_empirical_eta3"),
-                            labels = c("HZ", "NP", "SNP"))) %>%
-  ggplot()+
-  geom_smooth(aes(x = time, y = auc, group = sample, col = sample), 
-              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
-  geom_line(aes(x = time, y = true), na.rm = T)+
-  facet_wrap(~estimator)+
-  labs(title = "100 noise signals", x = "Time", y = "AUC")
-```
-
-```{r, fig.width=8, fig.height=8}
-tv_auc_plot <- ggarrange(p1, p2, p3, nrow = 3, ncol = 1, common.legend = T)
-annotate_figure(tv_auc_plot, bottom = "Note: black line indicates the true AUC value")
+```{r tvauc_smooth, cache=TRUE, fig.height=3, fig.width=10}
+auc_df_long %>%
+  ggplot(aes(x = time, y = AUC, col = model, linetype = sample))+
+  geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), 
+              na.rm = T, method = "gam")+
+  geom_line(aes(x = time, y = true), na.rm = T, col = "black")+
+  facet_grid(cols=vars(Estimator))+
+  labs(x="time", y = "AUC")
 ```
 
 
-```{r compiled_tv_auc}
-p_hz <- auc_df %>% dplyr::select(time, contains("HZ"), true, sample) %>%
-  pivot_longer(2:4, names_to = "model", values_to = "auc") %>%
-  mutate(model = factor(model, levels = c("HZ_eta1", "HZ_eta2", "HZ_eta3"),
-                            labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
-  group_by(sample, model) %>%
-  ggplot()+
-  geom_smooth(aes(x = time, y = auc, col = model, linetype = sample), 
-              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
-  geom_line(aes(x = time, y = true), na.rm = T)+
-  labs(title = "Semi-parametric estimators", x = "Time", y = "AUC")+
-  coord_cartesian(ylim=c(0.6, 1))
 
-```
-
-
-```{r}
-p_np <- auc_df %>% dplyr::select(time, starts_with("empirical_"), true, sample) %>%
-  pivot_longer(2:4, names_to = "model", values_to = "auc") %>%
-  mutate(model = factor(model, 
-                        levels = c("empirical_eta1", 
-                                   "empirical_eta2", 
-                                   "empirical_eta3"),
-                            labels = c("No noise", 
-                                       "20 noise signals", 
-                                       "100 noise signals"))) %>%
-  group_by(sample, model) %>%
-  ggplot()+
-  geom_smooth(aes(x = time, y = auc, col = model, linetype = sample), 
-              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
-  geom_line(aes(x = time, y = true), na.rm = T)+
-  labs(title = "Non-parametric estimators", x = "Time", y = "AUC")+
-  coord_cartesian(ylim=c(0.6, 1))
-
-#range(auc_df$empirical_eta1[auc_df$sample == "in-sample"])
-
-```
-
-
-```{r}
-p_snp <- auc_df %>% dplyr::select(time, starts_with("sm_empirical_"), true, sample) %>%
-  pivot_longer(2:4, names_to = "model", values_to = "auc") %>%
-  mutate(model = factor(model, levels = c("sm_empirical_eta1", "sm_empirical_eta2", "sm_empirical_eta3"),
-                            labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
-  group_by(sample, model) %>%
-  ggplot()+
-  geom_smooth(aes(x = time, y = auc, col = model, linetype = sample), 
-              se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T, method = "gam")+
-  geom_line(aes(x = time, y = true), na.rm = T)+
-  labs(title = "Smoothed non-parametric estimators", x = "Time", y = "AUC")+
-  coord_cartesian(ylim=c(0.6, 1))
-```
-
-```{r}
-
-tv_auc_plot_compile <- ggarrange(p_hz,  p_np, p_snp, nrow = 1, ncol = 3, common.legend = T,
-                                 legend = "right")
-```
-
-```{r fig.width=6, fig.height=2}
-annotate_figure(tv_auc_plot_compile, bottom = "Note: black line indicates the true AUC value")
-```
-
-
-```{r tvauc_boxplots}
+```{r tvauc_boxplots, fig.height=9, fig.width=6}
 brk <- seq(0, 1, 0.2)
-bp_in <- auc_df %>%
-  filter(sample=="in-sample") %>%
+auc_df_long %>%
   select(-true) %>%
   mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
-  pivot_longer(3:11, names_to = "estimator", values_to = "auc") %>%
-  mutate(model = gsub("HZ_|empirical_|sm_empirical_", "", estimator)) %>%
-  mutate(estimator = gsub("_eta1|_eta2|_eta3", "", estimator)) %>%
-  mutate(model = factor(model, levels = c("eta1", "eta2", "eta3"),
-                        labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
-  mutate(estimator = factor(estimator, levels = c("HZ", "sm_empirical", "empirical"),
-                            labels = c("Semi-parametric", "Smoothed non-parametric", "Non-parametric"))) %>%
-  ggplot(aes(x = factor(time_bin), y = auc, fill = estimator))+
+  ggplot(aes(x = factor(time_bin), y = AUC, fill = Estimator))+
   geom_boxplot(outlier.size = 0.5)+
-  facet_wrap(~model, nrow = 1, ncol = 3)+
-  labs(x = "Time", y = "AUC", title = "In-sample estimates")+
+  facet_grid(cols=vars(sample), rows = vars(model))+
+  labs(x = "Time", y = "AUC")+
   theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
   #scale_x_discrete(breaks = as.factor(c(0.1, 0.3, 0.5, 0.7, 0.9)))
-bp_in 
-```
 
-```{r}
-
-bp_out<- auc_df %>%
-  filter(sample=="out-of-sample") %>%
-  select(-true) %>%
-  mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
-  pivot_longer(3:11, names_to = "estimator", values_to = "auc") %>%
-  mutate(model = gsub("HZ_|empirical_|sm_empirical_", "", estimator)) %>%
-  mutate(estimator = gsub("_eta1|_eta2|_eta3", "", estimator)) %>%
-  mutate(model = factor(model, levels = c("eta1", "eta2", "eta3"),
-                        labels = c("No noise", "20 noise signals", "100 noise signals"))) %>%
-  mutate(estimator = factor(estimator, 
-                            levels = c("HZ", "sm_empirical", "empirical"),
-                            labels = c("Semi-parametric", "Smoothed non-parametric", "Non-parametric"))) %>%
-  ggplot(aes(x = factor(time_bin), y = auc, fill = estimator))+
-  geom_boxplot(outlier.size = 0.5)+
-  facet_wrap(~model, nrow = 1, ncol = 3)+
-  labs(x = "Time", y = "AUC", title = "Out-of-sample estimates")+
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
-
-bp_out
-```
-
-```{r}
-
-tv_auc_boxplot_compile <- ggarrange(bp_in,  bp_out, nrow = 1, ncol = 2, common.legend = T)
-```
-
-```{r, fig.width=7, fig.height=3}
-tv_auc_boxplot_compile
 ```
 
 
 From the figure below, most estimators of concordance are unbiased when the model is specified correctly. However, the Harrell' c-index and concordance from integrating non-parametric $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ estimator with weights from estimated Kaplan-Meier curve (NP_S) is biased upwards. The non-parametric estimators are also more variable, but smoothing either the survival curve or estimates of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ seems to significantly reduce both bias and variability (NP_SmS). It is also worth noting that the out-of-sample bias of Harrell's c and NP_S is smaller than in-sample bias. However, as more noise signals are included in the model, all the semi-parametric estimators (Gonen-Heller, HZ_S and HZ_SmS) are also significantly inflated above the truth, and the fully non-parametric estimators reveal overfit to the training data. 
 
-```{r, out.width='100%', message=FALSE, warning=FALSE}
-c_df_train$estimator <- factor(c_df_train$estimator, levels = levels(c_df_train$estimator),
-                         labels = c("Harrell's C", "Gonen-Heller", "HZ_S",
-                                    "HZ_SmS",
-                                    "NP_S",
-                                    "NP_SmS",
-                                    "SNP_S",
-                                    "SNP_SmS"))
-c_df_train$estimator <- factor(c_df_train$estimator,
-                               levels =  c("Gonen-Heller", "HZ_S", "HZ_SmS",
-                                           "Harrell's C", "NP_S","NP_SmS","SNP_S", "SNP_SmS"))
-# color by proporty
-c_df_train$prop <- as.factor(ifelse(c_df_train$estimator %in% c("Gonen-Heller", "HZ_S", "HZ_SmS"), 
-                          "Semi-parametric", "Non-parametric"))
-text_col <- c(rep("#00BFC4", 3), rep("#F8766D", 5))
-
-
-c_df_train$signal <- factor(c_df_train$signal, levels = levels(as.factor(c_df_train$signal)),
-                           labels = c("No noise", "20 noise", "100 noise"))
-
-
-pc1 <- c_df_train %>%  ggplot(aes(x = estimator, y = concordance))+
-  geom_boxplot(aes(fill = prop))+
-  theme(axis.text.x = element_text(angle = 70, vjust = 0.5, color = text_col), 
-        legend.title = element_blank())+
-  geom_hline(yintercept = true_c, col = "red")+
-  facet_wrap(~signal)+
-  labs(title = "In-sample concordance", x = "", y = "Concordance")
-
+```{r, fig.height=9, fig.width=6}
+c_df_long %>% 
+  ggplot(aes(x = Estimator, y = Concordance))+
+  geom_boxplot(aes(fill = Type))+
+  facet_grid(cols=vars(sample), rows = vars(model))+
+  geom_hline(yintercept = true_c, col = "red")
 ```
 
-```{r, out.width='100%', message=FALSE, warning=FALSE}
-c_df_test$estimator <- factor(c_df_test$estimator, levels = levels(c_df_test$estimator),
-                         labels = c("Harrell's C", "Gonen-Heller", "HZ_S",
-                                    "HZ_SmS",
-                                    "NP_S",
-                                    "NP_SmS",
-                                    "SNP_S",
-                                    "SNP_SmS"))
-c_df_test$estimator <- factor(c_df_test$estimator,
-                               levels =  c("Gonen-Heller", "HZ_S", "HZ_SmS",
-                                           "Harrell's C", "NP_S","NP_SmS","SNP_S", "SNP_SmS"))
-c_df_test$prop <- as.factor(ifelse(c_df_test$estimator %in% c("Gonen-Heller", "HZ_S", "HZ_SmS"), 
-                          "Semi-parametric", "Non-parametric"))
 
-c_df_test$signal <- factor(c_df_test$signal, levels = levels(as.factor(c_df_test$signal)),
-                           labels = c("No noise", "20 noise", "100 noise"))
-pc2 <- c_df_test %>%  ggplot(aes(x = estimator, y = concordance))+
-  geom_boxplot(aes(fill = prop))+
-  theme(axis.text.x = element_text(angle = 70, vjust = 0.5, color = text_col),
-        legend.title = element_blank())+
-  geom_hline(yintercept = true_c, col = "red")+
-  facet_wrap(~signal)+
-  labs(title = "Out of sample concordance", x = "", y = "Concordance")
-```
-
-```{r, fig.width=10, fig.height=5}
-c_plot <- ggarrange(pc1, pc2, nrow = 1, common.legend = T)
-annotate_figure(c_plot, bottom = "Note: red line indicates the true concordance")
-```
 
 # Discussion
 
