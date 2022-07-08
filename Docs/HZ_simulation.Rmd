@@ -293,29 +293,51 @@ auc_df_long %>%
 
 
 
-```{r tvauc_boxplots, fig.height=9, fig.width=6}
+```{r tvauc_boxplots, fig.height=4, fig.width=12}
 brk <- seq(0, 1, 0.2)
-auc_df_long %>%
-  select(-true) %>%
+tvauc_box1 <- auc_df_long %>%
+  dplyr::select(-true) %>%
+  filter(sample == "In-sample") %>%
   mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
   ggplot(aes(x = factor(time_bin), y = AUC, fill = Estimator))+
   geom_boxplot(outlier.size = 0.5)+
-  facet_grid(cols=vars(sample), rows = vars(model))+
-  labs(x = "Time", y = "AUC")+
+  facet_grid(cols = vars(model))+
+  labs(x = "Time", y = "AUC", title = "In-sample")+
   theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
   #scale_x_discrete(breaks = as.factor(c(0.1, 0.3, 0.5, 0.7, 0.9)))
 
+tvauc_box2 <- auc_df_long %>%
+  dplyr::select(-true) %>%
+  filter(sample == "Out-of-sample") %>%
+  mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
+  ggplot(aes(x = factor(time_bin), y = AUC, fill = Estimator))+
+  geom_boxplot(outlier.size = 0.5)+
+  facet_grid(cols = vars(model))+
+  labs(x = "Time", y = "AUC", title = "Out-of-sample")+
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
+
+ggarrange(tvauc_box1, tvauc_box2, nrow = 1, common.legend = T)
 ```
 
 
 From the figure below, most estimators of concordance are unbiased when the model is specified correctly. However, the Harrell' c-index and concordance from integrating non-parametric $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ estimator with weights from estimated Kaplan-Meier curve (NP_S) is biased upwards. The non-parametric estimators are also more variable, but smoothing either the survival curve or estimates of $\text{AUC}^{\mathbb{I}/\mathbb{D}}(t)$ seems to significantly reduce both bias and variability (NP_SmS). It is also worth noting that the out-of-sample bias of Harrell's c and NP_S is smaller than in-sample bias. However, as more noise signals are included in the model, all the semi-parametric estimators (Gonen-Heller, HZ_S and HZ_SmS) are also significantly inflated above the truth, and the fully non-parametric estimators reveal overfit to the training data. 
 
-```{r, fig.height=9, fig.width=6}
-c_df_long %>% 
+```{r, fig.height=4, fig.width=12}
+c1 <- c_df_long %>% 
+  filter(sample == "In-sample") %>%
   ggplot(aes(x = Estimator, y = Concordance))+
   geom_boxplot(aes(fill = Type))+
-  facet_grid(cols=vars(sample), rows = vars(model))+
+  facet_grid(cols=vars(model))+
   geom_hline(yintercept = true_c, col = "red")
+
+c2 <- c_df_long %>% 
+  filter(sample == "Out-of-sample") %>%
+  ggplot(aes(x = Estimator, y = Concordance))+
+  geom_boxplot(aes(fill = Type))+
+  facet_grid(cols=vars(model))+
+  geom_hline(yintercept = true_c, col = "red")
+
+ggarrange(c1, c2, nrow = 1, common.legend = T)
 ```
 
 
