@@ -142,8 +142,7 @@ plt_cox <- df_results_cox %>%
         ggplot() + 
         geom_boxplot(aes(x=estimator,y=Freq, fill=type)) + 
         facet_grid(~estimand) + theme_classic() + xlab("") + 
-        ylab("Concordance") + ggtitle("(A) Time-to-Event Outcome: Cox Regression") + 
-        theme(legend.position=c(0.9,0.85)) + labs(fill="")
+        ylab("Concordance") + labs(fill="")
 
 # TV-AUC
 tvauc_in_df <- lapply(tvauc_in, as.data.frame) %>%
@@ -157,6 +156,9 @@ tvauc_out_df <- lapply(tvauc_out, as.data.frame) %>%
 bind_rows(tvauc_in_df, tvauc_out_df) %>%
   pivot_longer(3:5, names_to = "Estimator", values_to = "AUC") %>%
   ggplot(aes(x = time, y = AUC, col = sample))+
-  geom_smooth(se = F)+
+  geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), 
+              na.rm = T, method = "gam")+
+  # geom_smooth(se = F)+
+  labs(x = "Time", y = "AUC")+
   facet_grid(~Estimator)
   

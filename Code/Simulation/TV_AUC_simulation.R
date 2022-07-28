@@ -9,7 +9,7 @@ library(mgcv)
 library(scam)
 library("clinfun")
 # set the seed
-set.seed(71)
+set.seed(726)
 
 
 # helper functions
@@ -20,7 +20,7 @@ source("Code/Simulation/helpers_estimator.R")
 #### Simulation set up ####
 
 M <- 1000 # number of simulated data sets
-N <- 500 # number of subjects
+N <- 1000 # number of subjects
 Beta <- c(1,-1,0.25)
 
 # training and test sample size 
@@ -149,6 +149,7 @@ auc_df_train <- bind_rows(auc_lst_train, .id = "iter")
 auc_df_test <- bind_rows(auc_lst_test, .id = "iter")
 auc_df <- bind_rows(auc_df_train, auc_df_test, .id = "sample")
 unique(auc_df_train$iter)
+table(auc_df_train$iter)
 
 
 ## concordance
@@ -187,7 +188,7 @@ c_df %>%
   geom_boxplot()+
   facet_wrap(~sample)
 
-save(auc_df, c_df, file = here("outputData/estimates_N_250.RData"))
+save(auc_df, c_df, file = here("outputData/estimates_N_500.RData"))
 
 # save(auc_df_train, auc_df_test, c_df_train, c_df_test, file = here("outputData/estimated_values.RData"))
 # save(auc_lst_train, auc_lst_test, file = here("outputData/results_by_iter.RData"))

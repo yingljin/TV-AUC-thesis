@@ -199,7 +199,9 @@ est_df %>% kable(escape = F, align = "c") %>%
 ```{r}
 load(here("outputData/true_values.RData"))
 # load(here("outputData/estimated_values.RData"))
-load(here("outputData/estimates_N_250.RData"))
+#load(here("outputData/estimates_N_500.RData"))
+load(here("outputData/estimates_N_500.RData"))
+head(table(auc_df$iter))
 ```
 
 
