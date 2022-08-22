@@ -2,20 +2,21 @@
 ##### GH for gam model ##### 
 
 ## calculate concordance under Gonen and heller
+# eta_ij = -eta_ji
 calc_c_gh <- function(beta_hat, X){
   N <- nrow(X)
   C <- 0
   for(i in 1:(N-1)){
     for(j in (i+1):N){
       eta_ij <- (X[i,,drop=F] - X[j,,drop=F]) %*% beta_hat
-      eta_ji <- (X[j,,drop=F] - X[i,,drop=F]) %*% beta_hat
       if(eta_ij < 0){
         C <- C + 1/(1 + exp(eta_ij))
-      } 
-      if(eta_ji < 0){
-        C <- C + 1/(1+exp(eta_ji))
       }
-    }
+      else if(eta_ij>0){
+        C <- C + 1/(1 + exp(-eta_ij))
+      }
+     
+   }
   }
   2/(N*(N-1))*C
 }
