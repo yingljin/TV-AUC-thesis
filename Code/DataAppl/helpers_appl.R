@@ -98,7 +98,7 @@ test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
     
   }
   # smoothed empirical AUC
-  sm_fit <- gam(NP ~ s(time, bs = "cr", k = min(10, nt_uni_test-1)), method = "REML", 
+  sm_fit <- gam(NP ~ s(time, bs = "cr", k = 30), method = "REML", 
                 data = as.data.frame(auc_mat))
   auc_mat[, "SNP"] <- predict(sm_fit)
   

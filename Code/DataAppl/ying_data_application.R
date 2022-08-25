@@ -8,16 +8,29 @@ library(tidyverse)
 library(clinfun)
 library(scam)
 
-set.seed(819)
+set.seed(825)
 
 
 ##### data ######
 list.files("Data")
 # new updated outcome
-# df_mort <- read_rds(here("Data/Mortality_2019_GH.rds"))
-# old covariates
-df_analysis_subj <-  read_rds(here("Data/Ying_NHANES_application.rds"))
-# update outome 
+df_analysis_subj <-  read_rds(here("Data/Ying_NHANES_application_0824.rds"))
+# df_old <- read_rds(here("Data/Ying_NHANES_application.rds"))
+
+df_analysis_subj <- df_analysis_subj %>% 
+  select(event_time_years, mortstat, ASTP_mean, RA_MIMS_mean, age_years_interview,
+         BMI, TMIMS_mean) %>%
+  mutate_at(vars(ASTP_mean, RA_MIMS_mean, age_years_interview,
+                 BMI, TMIMS_mean), scale)
+
+# table(df_analysis_subj$mortstat, useNA = "always")
+# 
+# hist(df_analysis_subj$ASTP_mean, breaks = 30)
+# hist(df_analysis_subj$RA_MIMS_mean, breaks = 30)
+# hist(df_analysis_subj$age_years_interview, breaks = 30)
+# hist(df_analysis_subj$BMI, breaks = 30)
+# hist(df_analysis_subj$TMIMS_mean, breaks = 30)
+
 
 
 
@@ -49,6 +62,8 @@ cv_results_arr <- array(NA, dim=c(5,2,nfolds),
 
 # simulation
 
+# k <- 1
+
 pb <- txtProgressBar(min=0,max=nfolds,style=3)
 for(k in 1:nfolds){
         
@@ -62,7 +77,7 @@ for(k in 1:nfolds){
         t_uni_test <- unique(df_test_k$event_time_years[df_test_k$mortstat==1])
         nt_uni_test <- length(t_uni_test)
         
-        # cox ph survival model
+        # cox ph survival model on training set
         fit_k <- try(gam(event_time_years ~ s(ASTP_mean,RA_MIMS_mean, 
                                               age_years_interview, BMI, TMIMS_mean, k=100, fx=TRUE), 
                    family=cox.ph, data=df_train_k, weights=mortstat))
@@ -171,10 +186,12 @@ bind_rows(tvauc_in_df, tvauc_out_df) %>%
   ggplot(aes(x = time, y = AUC, col = sample))+
   geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), 
               na.rm = T, method = "gam")+
-  # geom_smooth(se = F)+
   labs(x = "Time", y = "AUC")+
   facet_grid(~Estimator)
 ggsave(filename = here("imgforpaper/data_appl/tvauc_gam.png"), width = 7, height = 3)
+
+
+
 
 ##### not-overfitted model #####
 
