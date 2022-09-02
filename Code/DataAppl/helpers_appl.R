@@ -98,7 +98,7 @@ test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
     
   }
   # smoothed empirical AUC
-  sm_fit <- gam(NP ~ s(time, bs = "cr", k = 30), method = "REML", 
+  sm_fit <- gam(NP ~ s(time, bs = "cr", k = 20), method = "REML", 
                 data = as.data.frame(auc_mat))
   auc_mat[, "SNP"] <- predict(sm_fit)
   
@@ -124,7 +124,7 @@ intAUC_appl <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=N
     }
   }
   if(method == "smS"){
-    fit_S <- scam(St ~ s(ut, bs="mpd", k = min(10, length(utimes)-1)),
+    fit_S <- scam(St ~ s(ut, bs="mpd", k = 20),
                   data=data.frame(ut=ut, St=St))
     df_pred <- data.frame(ut = rep(ut, each=2) + rep(c(-0.00001,0.00001), length(ut)))
     St_pred <- predict(fit_S, newdata=df_pred, type='response')

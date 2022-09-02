@@ -41,6 +41,6 @@ vignettes/*.pdf
 # Access
 *.mdb
 data/*
-outputData/*
+OutputData/*
 !*/ReadMe.md
 
