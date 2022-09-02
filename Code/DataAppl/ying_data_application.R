@@ -82,7 +82,7 @@ for(k in 1:nfolds){
         # training models
         ## cox-gam
         fit_k_gam <- try(gam(event_time_years ~ s(ASTP_mean,RA_MIMS_mean, 
-                                              age_years_interview, BMI, TMIMS_mean, k=150, fx=TRUE), 
+                                              age_years_interview, BMI, TMIMS_mean, k=200, fx=TRUE), 
                    family=cox.ph, data=df_train_k, weights=mortstat))
         ## cox_linea
         fit_k_lin <- coxph(Surv(event_time_years, mortstat)~ 
