@@ -210,6 +210,7 @@ for(k in 1:nfolds){
 df_c_gam <- as.data.frame.table(c_gam) %>% mutate(model="GAM")
 df_c_lin <- as.data.frame.table(c_lin) %>% mutate(model = "Lin")
 
+load(here("OutputData/appl_c.RData"))
 
 bind_rows(df_c_gam, df_c_lin) %>% 
   mutate(type = ifelse(estimator %in% c("Harrell", "NP","SNP"), 
@@ -217,7 +218,7 @@ bind_rows(df_c_gam, df_c_lin) %>%
         ggplot() + 
         geom_boxplot(aes(x=estimator,y=Freq, fill=type)) + 
         facet_grid(rows = vars(model), cols = vars(estimand)) +
-  theme_classic() + xlab("") + 
+        xlab("") + 
         ylab("Concordance") + labs(fill="")
 ggsave(filename = here("imgforpaper/data_appl/concordance.png"))
 
