@@ -1,9 +1,10 @@
+# This script includes functions for aggregating results 
+# for one simulated dataset
 
-#### training estimates #### 
+#### In-sample estimates  #### 
 
-# get AUC and concordance estimates from a model 
-
-## fit is the model
+# AUC
+## fit is the cox model
 ## t: unique event time in training data
 ## eta: risk score corresponding to t 
 
@@ -41,13 +42,7 @@ train_auc <- function(fit, data = data_train,
   return(auc_mat)
 }
 
-# test function  
-# try_df <- train_auc(fit_1)
-# plot(try_df[, "time"], try_df[, "HZ"], type = "p")
-# points(try_df[, "time"], try_df[, "NP"], col = "red")
-# points(try_df[, "time"], try_df[, "SNP"], col = "blue")
-
-# in-sample concordance estimates
+# concordance 
 train_concord <- function(data = data_train, KM_est = KM_est_train, 
                           auc_mat, fit){
   
@@ -70,11 +65,10 @@ train_concord <- function(data = data_train, KM_est = KM_est_train,
   return(c_mat)
 }
 
-# test
-# train_concord(auc_mat = auc_est %>% filter(model=="No noise"), 
-# fit = fit_1)
 
-#### test estimates ####
+#### Out-of-sample estimates ####
+
+# eta is a vector biomaker/linear predictor
 
 test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
   # set up results container
@@ -84,7 +78,7 @@ test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
   
   data$eta <- eta
   
-  # cauclate in-sample AUC
+  # calculate in-sample AUC
   for(i in seq_along(t)){
     t_i <- t[i]
     # HZ
@@ -108,10 +102,6 @@ test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
   return(auc_mat)
 }
 
-# try_df <- test_auc(eta = test_eta3)
-# plot(try_df[, "time"], try_df[, "HZ"], type = "p")
-# points(try_df[, "time"], try_df[, "NP"], col = "red")
-# points(try_df[, "time"], try_df[, "SNP"], col = "blue")
 
 # test concordance
 test_concord <- function(data = data_test, KM_est = KM_est_test, 

@@ -1,9 +1,15 @@
-#### function for simulating survival times with Weibull baseline hazard ####
-# eta: vector containing the log hazard (linear predictor) for each subject
+
+# This script includes functions written for data generation
+# and calculating the estimators 
+
+
+#### data generation  ####
+# function for simulating survival times with Weibull baseline hazard
+# eta: vector containing the linear predictor for each subject
 # lambda: scale parameter for the baseline hazard
 # p: shape paramter for the baseline hazard
-# gen_Ct: function for generating censoring times, default is exponential with mean 5 truncated at t=1
-gen_St <- function(eta, lambda, p, gen_Ct = function(N) pmin(1,rexp(N, 1/5)) ){
+# gen_Ct: function for generating censoring times
+gen_St <- function(eta, lambda=2, p=2, gen_Ct){
   N <- length(eta)
   U <- runif(N, 0, 1)
   St = (-log(U)/(lambda*exp(eta)))^(1/p)
@@ -12,36 +18,8 @@ gen_St <- function(eta, lambda, p, gen_Ct = function(N) pmin(1,rexp(N, 1/5)) ){
   data.frame("event" = as.numeric(St<=Ct), "time" = pmin(St,Ct), "eta" = eta)
 }
 
-#### Integration functions for true AUC ####
-### Note that we need two different functions since there is a double integral in the specificity formula
-## function for integrating incident sensitivity
-my_fn_sens <- function(x, t, lambda=1, p=1, mn_eta=0, sigma_eta=2){
-  lambda*p*t^(p-1)*exp(x[1])*exp(-lambda*t^p*exp(x[1]))*dnorm(x[1], mean=mn_eta, sd=sigma_eta)
-}
-## function for integrating dynamic specificity
-my_fn_spec <- function(x, lambda=1, p=1, mn_eta=0, sigma_eta=2){
-  lambda*p*x[2]^(p-1)*exp(x[1])*exp(-lambda*x[2]^p*exp(x[1]))*dnorm(x[1], mean=mn_eta, sd=sigma_eta)
-}
 
-
-#### Calculate AUC  by integrating the ROC curve ####
-trap_integrate_ROC <- function(eta, sens, spec){
-  if(!Inf %in% eta){
-    sens <- c(sens, 0)
-    spec <- c(spec, 1)
-  }
-  if(!c(-Inf) %in% eta){
-    sens <- c(1, sens)
-    spec <- c(0, spec)
-  }
-  x <- rev(1-spec)
-  y <- rev(sens)
-  n <- length(y)
-  sum( (x[2:n] - x[1:(n-1)] ) * (y[1:(n-1)] + y[2:n]) )/2
-}
-
-
-##### Empirical estimator of AUC #####
+##### Non-parametric estimator of AUC #####
 ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
   if (length(entry) == 0) {
     entry = rep(0, NROW(Stime))
@@ -66,7 +44,7 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
 }
 
 
-#### caclulate empirical concordance #####
+#### Harrell's C-index #####
 calc_c <- function(marker, Stime, status){
   utimes <- sort(unique(Stime[status==1]))
   num <- denom <- 0
@@ -88,7 +66,8 @@ calc_c <- function(marker, Stime, status){
   1-num/denom
 }
 
-#### calculate concordance weighted by estimated survival probability and density ####
+#### Truncated Concordance ####
+#  integral of AUC weighted by smoothed estimated survival probability and density
 
 intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, Ct=NULL, k=30,...){
   ut <- utimes
@@ -122,8 +101,6 @@ intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, 
 }
 
 ##### Gonen & Heller #####
-
-
 coxphCPE_eta <- function (phfit, Xmat){
   if (class(phfit) != "coxph") 
     stop("phfit shoud be coxph class object")
@@ -132,12 +109,6 @@ coxphCPE_eta <- function (phfit, Xmat){
   p <- length(phfit$coefficients)
   vbetahat <- phfit$var
   xbeta <- Xmat%*%betahat
-  # if (getRversion() <= "2.9.1") {
-  #   xMat <- as.matrix(model.matrix(phfit)[, -1])
-  # }
-  # else {
-  #   xMat <- as.matrix(model.matrix(phfit))
-  # }
   bw <- 0.5 * sd(xbeta) * (n^(-1/3))
   zzz <- .Fortran("cpesub", as.integer(n), as.integer(p), as.double(Xmat), 
                   as.double(xbeta), as.double(bw), CPE = double(1), CPEsmooth = double(1), 
@@ -156,19 +127,4 @@ coxphCPE_eta <- function (phfit, Xmat){
   return(out)
 }
 
-##### Cauculate true concordance #####
-
-### marginal joint survival function
-
-true_st <- function(t, lambda=2, p=2, eta,sigma_eta){
-  St <- exp(-(lambda*exp(eta)*t)^p)*dnorm(eta, 0, sigma_eta)
-  return(St)
-}
-
-### marginal joint density function
-
-true_ft <- function(t, lambda=2, p=2, eta,sigma_eta){
-  ft <- p*lambda^p*t^(p-1)*exp(p*eta-(lambda*exp(eta)*t)^p)*dnorm(eta, 0, sigma_eta)
-  return(ft)
-}
 

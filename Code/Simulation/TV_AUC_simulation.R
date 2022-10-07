@@ -1,3 +1,9 @@
+
+# This script implements the simulation study that 
+# corresponding to the simulation section 
+# in the manuscript
+
+##### set up #####
 rm(list = ls())
 library("survival")
 library("ggplot2")
@@ -20,7 +26,7 @@ source("Code/Simulation/helpers_estimator.R")
 #### Simulation set up ####
 
 M <- 1000 # number of simulated data sets
-N <- 1000 # number of subjects
+N <- 500 # number of subjects
 Beta <- c(1,-1,0.25)
 
 # training and test sample size 
@@ -38,7 +44,8 @@ data_lst <- list()
 
 ##### simulation ####
 iter <- 1
-skip <- 0
+skip <- 0 # This is to re-generate data if a dataset has fitting issues
+          # because small number of unique events 
 
 pb <- txtProgressBar(min=0, max=M,style=3)
 while(iter <= M){
@@ -46,7 +53,7 @@ while(iter <= M){
   # generate data
   X  <- matrix(rnorm(N*3), ncol=p, nrow=N)
   Z <- matrix(rnorm(N*100), ncol = 100, nrow = N)
-  data <- gen_St(eta=X %*% Beta,lambda=2, p=2, 
+  data <- gen_St(eta=X %*% Beta, lambda=2, p=2, 
                  gen_Ct = function(N){
                    sample(c(0.5, 1), size = N, replace = T)})
   data <- rename(data, true_eta = eta)
@@ -140,16 +147,12 @@ while(iter <= M){
   setTxtProgressBar(pb, value=iter)
 }
 
-auc_lst_train[[1]] %>% head()
-auc_lst_test[[1]] %>% head()
-c_lst_train[[1]]
-c_lst_test[[1]]
+##### Cleaning and formatting results #####
 
+## AUC
 auc_df_train <- bind_rows(auc_lst_train, .id = "iter")
 auc_df_test <- bind_rows(auc_lst_test, .id = "iter")
 auc_df <- bind_rows(auc_df_train, auc_df_test, .id = "sample")
-unique(auc_df_train$iter)
-table(auc_df_train$iter)
 
 
 ## concordance
@@ -159,36 +162,77 @@ c_df <- bind_rows(c_df_train, c_df_test, .id = "sample")
 
 #### true AUC #####
 load(here("outputData/true_values.RData"))
+
+# use interpolation to estimate AUC on simulated time series
 true_auc_sort <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
                        xout = auc_df$time)$y
 
-head(true_auc_sort)
-plot(auc_df$time, true_auc_sort)
 
-# interpolated_auc_train<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
-#                                xout = auc_df_train$time)$y
-# interpolated_auc_test<-approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
-#                               xout = auc_df_test$time)$y
+#### Produce figures #####
 
-#### brief check of results #####
-auc_df %>% 
-  mutate(true = true_auc_sort) %>% 
-  pivot_longer(4:6) %>% 
+# trend of TV-AUC estimates (smoothed)
+auc_df_long <- auc_df %>% 
+  mutate(true = true_auc_sort,
+         sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
+  pivot_longer(4:6) 
+
+auc_df_long %>% 
   ggplot(aes(x=time, y=value, col=model, linetype = sample))+
   geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
               method = "gam")+
+  geom_line(aes(x = time, y = true), na.rm = T, col = "black")+
   facet_wrap(~name)+
-  geom_line(aes(x=time, y = true))
-  
-  
-c_df <- bind_rows(c_df_train, c_df_test, .id = "sample")
-c_df %>%
-  pivot_longer(3:7) %>%
-  ggplot(aes(x=name, y=value))+
-  geom_boxplot()+
-  facet_wrap(~sample)
+  geom_line(aes(x=time, y = true))+
+    labs(x="time", y = "AUC")
 
-save(auc_df, c_df, file = here("outputData/estimates_N_500.RData"))
+# spread of TV-AUC estimates
+brk <- seq(0, 1, 0.2) # bin time into five different bins
+auc_df_long %>%
+  dplyr::select(-true) %>%
+  filter(sample == "In-sample") %>%
+  mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
+  ggplot(aes(x = factor(time_bin), y = value, fill = name))+
+  geom_boxplot(outlier.size = 0.5)+
+  facet_grid(cols = vars(model))+
+  labs(x = "Time", y = "AUC", title = "In-sample")+
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
+
+auc_df_long %>%
+  dplyr::select(-true) %>%
+  filter(sample == "Out-of-sample") %>%
+  mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
+  ggplot(aes(x = factor(time_bin), y = value, fill = name))+
+  geom_boxplot(outlier.size = 0.5)+
+  facet_grid(cols = vars(model))+
+  labs(x = "Time", y = "AUC", title = "Out-of-sample")+
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
+
+
+# concordance
+c_df <- bind_rows(c_df_train, c_df_test, .id = "sample")
+c_df_long <- c_df %>%
+  mutate(sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
+  pivot_longer(3:7) %>%
+  mutate(Type = ifelse(name=="HZ"|name=="GH", "Semi-parametrc", "Non-parametric")) %>%
+  mutate(model = factor(model, levels = c("No noise",  "20 noise", "100 noise")),
+         name = factor(name, levels = c("HZ","GH", "Harrell.s","NP","SNP"),
+                       labels = c("HZ","GH", "Harrell","NP","SNP")))
+
+c_df_long %>% 
+  filter(sample == "In-sample") %>%
+  ggplot(aes(x = name, y = value))+
+  geom_boxplot(aes(fill = Type))+
+  facet_grid(cols=vars(model))+
+  geom_hline(yintercept = true_c, col = "red")
+
+c_df_long %>% 
+  filter(sample == "Out-of-sample") %>%
+  ggplot(aes(x = name, y = value))+
+  geom_boxplot(aes(fill = Type))+
+  facet_grid(cols=vars(model))+
+  geom_hline(yintercept = true_c, col = "red")
+
+
 
 # save(auc_df_train, auc_df_test, c_df_train, c_df_test, file = here("outputData/estimated_values.RData"))
 # save(auc_lst_train, auc_lst_test, file = here("outputData/results_by_iter.RData"))

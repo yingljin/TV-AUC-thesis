@@ -42,5 +42,8 @@ vignettes/*.pdf
 *.mdb
 data/*
 OutputData/*
+Docs/*
+imgforpaper/*
+screenshots/*
 !*/ReadMe.md
 
