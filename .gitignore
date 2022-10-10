@@ -40,9 +40,11 @@ vignettes/*.pdf
 *.xport
 # Access
 *.mdb
-data/*
+Data/*
 OutputData/*
 Docs/*
 screenshots/*
+Sciprts/*
+
 !*/ReadMe.md
 
