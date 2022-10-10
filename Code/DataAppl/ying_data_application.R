@@ -1,4 +1,7 @@
 
+# This code reproduces the data application section 
+# in the manuscript
+
 ##### set-up #####
 rm(list = ls())
 library("survival");library("risksetROC");
@@ -12,9 +15,9 @@ set.seed(825)
 
 
 ##### data ######
-list.files("Data")
+
 # new updated outcome
-df_analysis_subj <-  read_rds(here("Data/Ying_NHANES_application_0824.rds"))
+df_analysis_subj <-  read_rds(here("Data/NHANES_application_0824.rds"))
 
 # select variables of interest and center & scale covariates
 df_analysis_subj <- df_analysis_subj %>% 
@@ -25,14 +28,16 @@ df_analysis_subj <- df_analysis_subj %>%
 
 ##### source code #####
 
-source(here("Code/Simulation/helpers.R"))
+# same estimators from the simulation section
+source(here("Code/Simulation/helpers.R")) 
+# functions for saving/formatting results, and calculation of GH 
 source(here("Code/DataAppl/helpers_appl.R"))
+
 
 #####  split fold ####
 nfolds <- 10
 N   <- nrow(df_analysis_subj) # sample size
 inx_ls <- split(1:N, f=rep(1:nfolds, ceiling(N/nfolds))[1:N])
-
 
 
 #####  container for TV-AUC #####
@@ -65,7 +70,6 @@ c_lin <- array(NA, dim=c(5,2,nfolds),
 
 
 #### simulation ####
-k <- 1
 pb <- txtProgressBar(min=0,max=nfolds,style=3)
 for(k in 1:nfolds){
         
@@ -89,7 +93,7 @@ for(k in 1:nfolds){
                              ASTP_mean + RA_MIMS_mean + age_years_interview + BMI + TMIMS_mean,
                            data = df_train_k)
 
-  
+        # check if there is fitting issues with GAM model
         if(!inherits(fit_k_gam,"try-error")){
           # TV-AUC
           ## in-sample
@@ -205,12 +209,10 @@ for(k in 1:nfolds){
         setTxtProgressBar(pb, k)
 }
 
-##### results #####
+##### Figures #####
 ## concordance
 df_c_gam <- as.data.frame.table(c_gam) %>% mutate(model="GAM")
 df_c_lin <- as.data.frame.table(c_lin) %>% mutate(model = "Lin")
-
-load(here("OutputData/appl_c.RData"))
 
 bind_rows(df_c_gam, df_c_lin) %>% 
   mutate(type = ifelse(estimator %in% c("Harrell", "NP","SNP"), 
@@ -220,10 +222,6 @@ bind_rows(df_c_gam, df_c_lin) %>%
         facet_grid(rows = vars(model), cols = vars(estimand)) +
         xlab("") + 
         ylab("Concordance") + labs(fill="")
-ggsave(filename = here("imgforpaper/data_appl/concordance.png"))
-
-save(df_c_gam, df_c_lin, file = here("OutputData/appl_c.RData"))
-
 
 ## TV-AUC
 tvauc_in_df_gam <- lapply(tvauc_in_gam, as.data.frame) %>%
@@ -247,15 +245,5 @@ bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) 
   ggplot(aes(x = time, y = AUC, col = model, linetype = sample))+
   geom_smooth(se = F, formula = y~s(x,  k=30, bs = "cs"),
               na.rm = T, method = "gam")+
-  # geom_smooth(se=F, na.rm = T)+
   labs(x = "Time", y = "AUC")+
   facet_grid(~Estimator)
-ggsave(filename = here("imgforpaper/data_appl/tvauc_gam.png"), width = 8, height = 3)
-
-save(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin,
-     file = here("OutputData/appl_tvauc.RData"))
-
-##### explore one iteration #####
-tvauc_in_gam[[k]]
-ggplot(data.frame(tvauc_in_gam[[k]]))+
-  geom_point(aes(x=time, y = NP))

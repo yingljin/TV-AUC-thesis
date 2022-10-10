@@ -1,8 +1,13 @@
 
+# This script includes functions that are used specifically for data application
+# The functions are different from simulation
+# mostly because gam model is used instead of Cox PH
+
 ##### GH for gam model ##### 
 
-## calculate concordance under Gonen and heller
-# eta_ij = -eta_ji
+## calculate concordance under Gonen and heller 
+## beta_hat: coefficient estimate from cox gam model
+## X: design matrix
 calc_c_gh <- function(beta_hat, X){
   N <- nrow(X)
   C <- 0
@@ -22,14 +27,15 @@ calc_c_gh <- function(beta_hat, X){
 }
 
 
-#### training estimates #### 
+#### Training estimates #### 
 
-# get AUC and concordance estimates from a GAM model 
+# calcualte AUC from GAM model on training set
 
-## fit is the GAM model
+## fit: GAM-cox model
+## data: dataframe with columns time, event
 ## t: unique event time in training data
-## eta: risk score corresponding to t 
-## data: data frame with columns: time, event
+## nt: number of unique event time
+
 
 train_auc <- function(fit = fit_k, data = df_train_k,
                       t = t_uni_train, nt = nt_uni_train){
@@ -41,7 +47,7 @@ train_auc <- function(fit = fit_k, data = df_train_k,
   # estimated risk score
   data$eta <- fit$linear.predictors
   
-  # cauclate in-sample AUC
+  # calculate in-sample AUC
   for(i in seq_along(t)){
     t_i <- t[i]
     # HZ
@@ -65,13 +71,13 @@ train_auc <- function(fit = fit_k, data = df_train_k,
   return(auc_mat)
 }
 
-# test function  
-# try_df <- train_auc(fit_1)
-# plot(try_df[, "time"], try_df[, "HZ"], type = "p")
-# points(try_df[, "time"], try_df[, "NP"], col = "red")
-# points(try_df[, "time"], try_df[, "SNP"], col = "blue")
 
-#### test estimates ####
+#### Testing estimates ####
+
+## eta: linear predictors/risk score
+## data: dataframe with columns time, event
+## t: unique event time in testing data
+## nt: number of unique event time
 
 test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
   # set up results container
@@ -81,7 +87,7 @@ test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
   
   data$eta <- eta
   
-  # cauclate in-sample AUC
+  # calculate in-sample AUC
   for(i in seq_along(t)){
     t_i <- t[i]
     # HZ
@@ -105,15 +111,17 @@ test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
   return(auc_mat)
 }
 
-# try_df <- test_auc(eta = test_eta3)
-# plot(try_df[, "time"], try_df[, "HZ"], type = "p")
-# points(try_df[, "time"], try_df[, "NP"], col = "red")
-# points(try_df[, "time"], try_df[, "SNP"], col = "blue")
+
+#### Concrodance from GAM-Cox model ####
+
+# calculate truncated concordance weighted by estimated survival probability and density
+# AUC: AUC estimates from previous functions
+# utimes: event time
+# St: survival function values
+# method: "HZ" estimates survival density by slope, while "smS" uses scam smoothing
 
 
-#### calculate concordance weighted by estimated survival probability and density ####
-
-intAUC_appl <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, Ct=NULL,...){
+intAUC_appl <- function(AUC, utimes, St, method="HZ"){
   ut <- utimes
   # estimate survival probablity
   if(method == "HZ"){
