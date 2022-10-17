@@ -6,7 +6,7 @@ This repository saves the code scripts needed for reproducing the simulation and
 
   - Simulation
   
-    Includes functions for I/D-AUC and concordance estimators, functions for generate data and calculated true estimands, and the full script for simulation.
+    Includes functions for I/D-AUC and concordance estimators, functions for generate data and calculated true estimands, the full script for simulation, as well as an example of one iteration in the simulation process.
     
   - DataAppl
   
