@@ -1,0 +1,196 @@
+---
+title: "Simulation example for one iteration"
+author: "Ying Jin"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+# packages
+library("survival")
+library("ggplot2")
+library(ggpubr)
+library("cubature")
+library("tidyverse")
+library(here)
+library(risksetROC)
+library(mgcv)
+library(scam)
+library("clinfun")
+
+# helper functions
+source(here("Code/Simulation/helpers.R"))
+source("Code/Simulation/helpers_estimator.R")
+```
+
+# Generate data
+
+In this vignette, we will go over one iteration of the simulation study in the manuscript in details. First, let's introduce the data generating mechanism. 
+
+Each simulation dataset includes three components: 
+
+- Covariates. The three covariates associated with survival outcome are generated independently from standard normal distribution. 
+
+- Survival outcome, including true survival time $T^*$, censor time $C$ and event statu $I(T^*\leq C)$. In this simulation study, the true survival time is generated from a Cox Proportional Hazard Model with Weiball baseline distribution. The log hazard is linearly correlated with covariates as below:
+
+$$log \lambda_i(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}, t>0$$
+
+with $\boldsymbol{\beta} = (1, -1, 0.25)$ and Weibull baseline hazard $\lambda_0(t) = p\theta t^{p-1}$, $[\theta, p]^t = [2, 2]^t$. 
+
+Censoring times are simulated for Unifrom(0.5, 1), independently of event times. There is also an overall endpoint of follow-up $\tau=1$. No observation is made after this time point.
+
+- Noise. These variables are generated from standard normal distribution. They are not correlated with either the covariate or the outcome, thus should make no contribution to prediction. They are also independent from each other. 
+
+Now let's generated one dataset from this mechanism, and take a brief look at this dataset:
+
+```{r}
+N <- 500 # sample size
+Beta <- c(1,-1,0.25) # true coefficient
+p <- 3 # number of covariates 
+
+
+X <- matrix(rnorm(N*3), ncol=p, nrow=N) # covariates
+Z <- matrix(rnorm(N*100), ncol = 100, nrow = N) # noise
+data <- gen_St(eta=X %*% Beta, lambda=2, p=2, 
+                gen_Ct = function(N){
+                  sample(c(0.5, 1), size = N, replace = T)}) # outcome
+data <- rename(data, true_eta = eta)
+data$X <- I(X)
+data$Z <- I(Z)
+```
+
+```{r}
+# number of event and censor
+table(data$event)
+# Kaplan-Meier curve
+plot(survfit(Surv(time, event)~1, data = data), xlab = "Time", ylab = "Survival")
+```
+
+Once the data is generated, we need to split the sample into training and testing set, so that we can compare the generalizability of different predictive models. In the manuscript, the dataset is split in half: 
+
+```{r}
+N_obs <- N*0.5
+data_train <- data[1:N_obs,]
+data_test  <- data[-c(1:N_obs),]
+```
+
+# Cox models
+
+To investigate the effect of overfit (induced by noise signals) on predictive performane estimators, we fit three different Cox Proportional Hazard models
+
+1. Not overfitted: $log \lambda_i(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}$
+2. Moderately overfitted: $log \lambda_i(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}+\sum_{j=1}^{20}Z_j\gamma_j$
+3. Severely overfitted: $log \lambda_i(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}+\sum_{j=1}^{100}Z_j\gamma_j$
+
+In 2 and 3, $Z_j$ denotes noise signals. The difference between model 2 and 3 is the number of noise signals included. 
+
+Please note that in the following code, a **tryCatch** statement is used to catch model fitting issues. These issues, even though rarely occur, can happen because number of events is less than the number of covariates.
+
+
+```{r}
+# Fit cox models on training data
+# true model
+fit_1 <- tryCatch(expr = coxph(Surv(time, event) ~ X, data=data_train), warning = function(x){NULL})
+# moderately overfitted
+fit_2 <- tryCatch(expr = coxph(Surv(time, event) ~ X + Z[,1:20], data=data_train), 
+                    warning = function(x){NULL})
+# severely overfitted  
+fit_3 <- tryCatch(expr = coxph(Surv(time, event) ~ X + Z, data=data_train),
+                    warning = function(x){NULL})
+```
+
+
+# Incident/Dynamic AUC estimators
+
+Now that we have a dataset, we can evaluated the Incident/Dynamic AUC estimators at each unique even time. In this simulation study, we well compare the following three estimators:
+
+- Heagerty & Zheng estimator (HZ). This is a semi-parametric estimator, since it incorporates the term $exp(\boldsymbol{X}^T\boldsymbol{\beta})$ as weights for estimation of sensitivity. 
+
+- Non-parametric estimator (NP). This estimators is established on plug-in principals, using the proportion of true positive and true negative obesrvations for estimation of sensitivity and specificity, respectively. 
+
+- Smoothed non-parametric estimator (SNP). This is a smoothed version of the non-parametric estimator above.
+
+At a speficit time point, all three methods estimate sensitivity and specificity at a series of discrete values of $\boldsymbol{X}^T\boldsymbol{\beta}$ to get an ROC curve, and use its integral as estimate of Incident/Dynamic AUC.
+
+```{r}
+# in-sample estimates
+# unique time and biomarker values of training sample
+t_uni_train <- unique(data_train$time[data_train$event==1])
+nt_uni_train <- length(t_uni_train)
+
+# AUC estimates
+auc_est1 <- train_auc(fit_1)
+auc_est2 <- train_auc(fit_2)
+auc_est3 <- train_auc(fit_3)
+```
+
+
+```{r}
+# out-of-sample estimates
+# estimated risk scores
+## based on model trained in-sample
+test_eta1 <- as.vector(data_test$X %*% coef(fit_1))
+test_eta2 <- as.vector(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2))
+test_eta3 <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3))
+
+# unique event time in the test set
+t_uni_test <- unique(data_test$time[data_test$event==1])
+nt_uni_test <- length(t_uni_test)
+
+#  AUC estimates
+test_auc_est1 <- test_auc(test_eta1)
+test_auc_est2 <- test_auc(test_eta2)
+test_auc_est3 <- test_auc(test_eta3)
+```
+
+Now let's take a look at the results:
+
+```{r }
+auc_in <- bind_rows(data.frame(auc_est1), data.frame(auc_est2), data.frame(auc_est3), .id = "Model") %>% 
+  mutate(Model = factor(Model, levels = 1:3, labels = c("No noise", "20 noise", "100 noise")))
+
+auc_out <- bind_rows(data.frame(test_auc_est1), data.frame(test_auc_est2), data.frame(test_auc_est3), .id = "Model") %>% 
+  mutate(Model = factor(Model, levels = 1:3, labels = c("No noise", "20 noise", "100 noise")))
+```
+
+
+```{r}
+ggarrange(
+  ggplot(auc_in)+
+    geom_line(aes(x=time, y=HZ, col = Model, group = Model)),
+  ggplot(auc_out)+
+    geom_line(aes(x=time, y=HZ, col = Model, group = Model)),
+  nrow = 1, common.legend = T)
+```
+
+```{r}
+ggarrange(
+  ggplot(auc_in)+
+    geom_line(aes(x=time, y=NP, col = Model, group = Model)),
+  ggplot(auc_out)+
+    geom_line(aes(x=time, y=NP, col = Model, group = Model)),
+  nrow = 1, common.legend = T)
+```
+
+```{r}
+ggarrange(
+  ggplot(auc_in)+
+    geom_line(aes(x=time, y=SNP, col = Model, group = Model)),
+  ggplot(auc_out)+
+    geom_line(aes(x=time, y=SNP, col = Model, group = Model)),
+  nrow = 1, common.legend = T)
+```
+
+
+
+
+
