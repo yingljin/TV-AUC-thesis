@@ -7,6 +7,7 @@
 rm(list = ls())
 library("survival")
 library("ggplot2")
+library(ggpubr)
 library("cubature")
 library("tidyverse")
 library(here)
@@ -160,7 +161,7 @@ c_df_train <- bind_rows(c_lst_train, .id = "iter")
 c_df_test <- bind_rows(c_lst_test, .id = "iter")
 c_df <- bind_rows(c_df_train, c_df_test, .id = "sample")
 
-#### true AUC #####
+#### true AUC and concordance #####
 load(here("outputData/true_values.RData"))
 
 # use interpolation to estimate AUC on simulated time series
@@ -168,7 +169,11 @@ true_auc_sort <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc,
                        xout = auc_df$time)$y
 
 
+
 #### Produce figures #####
+
+theme_set(theme_minimal())
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
 # trend of TV-AUC estimates (smoothed)
 auc_df_long <- auc_df %>% 
@@ -176,17 +181,27 @@ auc_df_long <- auc_df %>%
          sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
   pivot_longer(4:6) 
 
+auc_df_long$model <- factor(auc_df_long$model, levels = c("No noise", "20 noise", "100 noise"))
+table(auc_df_long$model)
+auc_df_long$name <- factor(auc_df_long$name, levels = c("HZ", "SNP", "NP"))
+table(auc_df_long$name)
+
+
 auc_df_long %>% 
   ggplot(aes(x=time, y=value, col=model, linetype = sample))+
   geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
               method = "gam")+
-  geom_line(aes(x = time, y = true), na.rm = T, col = "black")+
+  geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
+  labs(x="time", y = "AUC")+
+  theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
   facet_wrap(~name)+
-  geom_line(aes(x=time, y = true))+
-    labs(x="time", y = "AUC")
+  scale_colour_manual(values=cbPalette)
+
+ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg = "white")
 
 # spread of TV-AUC estimates
 brk <- seq(0, 1, 0.2) # bin time into five different bins
+ggarrange(
 auc_df_long %>%
   dplyr::select(-true) %>%
   filter(sample == "In-sample") %>%
@@ -195,7 +210,12 @@ auc_df_long %>%
   geom_boxplot(outlier.size = 0.5)+
   facet_grid(cols = vars(model))+
   labs(x = "Time", y = "AUC", title = "In-sample")+
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1), 
+        text=element_text(size = 15),
+        axis.text = element_text(size = 10))+
+  scale_fill_manual(values=cbPalette)+
+  labs(y="AUC"), 
+# ggsave(filename = "tvauc_box_N250_in.png", path = "Images/N250", width=7, height = 4, bg = "white")
 
 auc_df_long %>%
   dplyr::select(-true) %>%
@@ -205,7 +225,12 @@ auc_df_long %>%
   geom_boxplot(outlier.size = 0.5)+
   facet_grid(cols = vars(model))+
   labs(x = "Time", y = "AUC", title = "Out-of-sample")+
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1))
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1), 
+        text = element_text(size=15),
+        axis.text = element_text(size = 10))+
+  scale_fill_manual(values=cbPalette)+
+  labs(y="AUC"), nrow=1, common.legend = T)
+ggsave(filename = "tvauc_box_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
 
 
 # concordance
@@ -218,19 +243,31 @@ c_df_long <- c_df %>%
          name = factor(name, levels = c("HZ","GH", "Harrell.s","NP","SNP"),
                        labels = c("HZ","GH", "Harrell","NP","SNP")))
 
+ggarrange(
 c_df_long %>% 
   filter(sample == "In-sample") %>%
   ggplot(aes(x = name, y = value))+
   geom_boxplot(aes(fill = Type))+
   facet_grid(cols=vars(model))+
-  geom_hline(yintercept = true_c, col = "red")
+  geom_hline(yintercept = true_c, col = "red")+
+  theme(text = element_text(size = 12),
+        axis.text = element_text(size=8))+
+  scale_fill_manual(values=cbPalette)+
+  labs(y = "Concordance", x = "Estimator"),
+#ggsave(filename = "concordance_N250_in.png", path = "Images/N250", width=7, height = 4, bg = "white")
 
 c_df_long %>% 
   filter(sample == "Out-of-sample") %>%
   ggplot(aes(x = name, y = value))+
   geom_boxplot(aes(fill = Type))+
   facet_grid(cols=vars(model))+
-  geom_hline(yintercept = true_c, col = "red")
+  geom_hline(yintercept = true_c, col = "red")+
+  theme(text = element_text(size = 12),
+        axis.text = element_text(size=8))+
+  scale_fill_manual(values=cbPalette)+
+  labs(y = "Concordance", x = "Estimator"), nrow = 1, common.legend = T)
+ggsave(filename = "concordance_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
+
 
 
 
