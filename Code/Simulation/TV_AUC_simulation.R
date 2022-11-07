@@ -15,6 +15,9 @@ library(risksetROC)
 library(mgcv)
 library(scam)
 library("clinfun")
+theme_set(theme_minimal())
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
 # set the seed
 set.seed(726)
 
@@ -28,6 +31,7 @@ source("Code/Simulation/helpers_estimator.R")
 
 M <- 1000 # number of simulated data sets
 N <- 500 # number of subjects
+#N <- 1000 # number of subjects
 Beta <- c(1,-1,0.25)
 
 # training and test sample size 
@@ -172,9 +176,6 @@ true_auc_sort <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc,
 
 #### Produce figures #####
 
-theme_set(theme_minimal())
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
 # trend of TV-AUC estimates (smoothed)
 auc_df_long <- auc_df %>% 
   mutate(true = true_auc_sort,
@@ -198,6 +199,7 @@ auc_df_long %>%
   scale_colour_manual(values=cbPalette)
 
 ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg = "white")
+#ggsave(filename = "tvauc_N500.png", path = "Images/N500", width=15, height=4, bg = "white")
 
 # spread of TV-AUC estimates
 brk <- seq(0, 1, 0.2) # bin time into five different bins
@@ -215,7 +217,6 @@ auc_df_long %>%
         axis.text = element_text(size = 10))+
   scale_fill_manual(values=cbPalette)+
   labs(y="AUC"), 
-# ggsave(filename = "tvauc_box_N250_in.png", path = "Images/N250", width=7, height = 4, bg = "white")
 
 auc_df_long %>%
   dplyr::select(-true) %>%
@@ -231,7 +232,7 @@ auc_df_long %>%
   scale_fill_manual(values=cbPalette)+
   labs(y="AUC"), nrow=1, common.legend = T)
 ggsave(filename = "tvauc_box_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
-
+#ggsave(filename = "tvauc_box_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
 # concordance
 c_df <- bind_rows(c_df_train, c_df_test, .id = "sample")
@@ -253,8 +254,7 @@ c_df_long %>%
   theme(text = element_text(size = 12),
         axis.text = element_text(size=8))+
   scale_fill_manual(values=cbPalette)+
-  labs(y = "Concordance", x = "Estimator"),
-#ggsave(filename = "concordance_N250_in.png", path = "Images/N250", width=7, height = 4, bg = "white")
+  labs(y = "Concordance", x = "Estimator", title = "In-sample"),
 
 c_df_long %>% 
   filter(sample == "Out-of-sample") %>%
@@ -265,9 +265,9 @@ c_df_long %>%
   theme(text = element_text(size = 12),
         axis.text = element_text(size=8))+
   scale_fill_manual(values=cbPalette)+
-  labs(y = "Concordance", x = "Estimator"), nrow = 1, common.legend = T)
+  labs(y = "Concordance", x = "Estimator", title = "Out-of-sample"), nrow = 1, common.legend = T)
 ggsave(filename = "concordance_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
-
+#ggsave(filename = "concordance_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
 
 

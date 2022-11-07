@@ -11,6 +11,10 @@ library(tidyverse)
 library(clinfun)
 library(scam)
 
+theme_set(theme_minimal())
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
 set.seed(825)
 
 
@@ -221,7 +225,10 @@ bind_rows(df_c_gam, df_c_lin) %>%
         geom_boxplot(aes(x=estimator,y=Freq, fill=type)) + 
         facet_grid(rows = vars(model), cols = vars(estimand)) +
         xlab("") + 
-        ylab("Concordance") + labs(fill="")
+        ylab("Concordance") + labs(fill="")+
+  scale_fill_manual(values = cbPalette)+
+  theme(text = element_text(size = 15), axis.text = element_text(size = 10))
+ggsave(filename = "concordance.png", path = "Images/data_appl", width=10, height=8, bg = "white")
 
 ## TV-AUC
 tvauc_in_df_gam <- lapply(tvauc_in_gam, as.data.frame) %>%
@@ -246,4 +253,8 @@ bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) 
   geom_smooth(se = F, formula = y~s(x,  k=30, bs = "cs"),
               na.rm = T, method = "gam")+
   labs(x = "Time", y = "AUC")+
-  facet_grid(~Estimator)
+  facet_grid(~Estimator)+
+  scale_color_manual(values = cbPalette)+
+  theme(text = element_text(size = 15), axis.text = element_text(size = 10))
+ggsave(filename = "tvauc_gam.png", path = "Images/data_appl", 
+       width=15, height=4, bg="white")
