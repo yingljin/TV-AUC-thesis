@@ -221,6 +221,7 @@ df_c_lin <- as.data.frame.table(c_lin) %>% mutate(model = "Lin")
 bind_rows(df_c_gam, df_c_lin) %>% 
   mutate(type = ifelse(estimator %in% c("Harrell", "NP","SNP"), 
                        "Non-parametric", "Semi-parametric")) %>% 
+  mutate(model = factor(model, levels=c("GAM", "Lin"), labels = c("ACM", "LCM"))) %>%
         ggplot() + 
         geom_boxplot(aes(x=estimator,y=Freq, fill=type)) + 
         facet_grid(rows = vars(model), cols = vars(estimand)) +
@@ -229,6 +230,16 @@ bind_rows(df_c_gam, df_c_lin) %>%
   scale_fill_manual(values = cbPalette)+
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))
 ggsave(filename = "concordance.png", path = "Images/data_appl", width=10, height=8, bg = "white")
+
+# check concordance numbers
+## gam 
+df_c_gam %>% group_by(estimator, estimand) %>% summarise_at("Freq", mean)
+
+
+#bind_rows(df_c_gam, df_c_lin) %>% 
+#  group_by(estimator, estimand, model) %>% 
+#  summarise_at("Freq", mean)
+  
 
 ## TV-AUC
 tvauc_in_df_gam <- lapply(tvauc_in_gam, as.data.frame) %>%
@@ -247,7 +258,8 @@ tvauc_out_df_lin <- lapply(tvauc_out_lin, as.data.frame) %>%
   bind_rows(.id = "iter") %>%
   mutate(sample = "Out-of-sample" ,model = "Lin")
 
-bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) %>%
+bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) %>% 
+  mutate(model = factor(model, levels = c("GAM", "Lin"), labels = c("ACM","LCM"))) %>%
   pivot_longer(c("HZ", "NP", "SNP"), names_to = "Estimator", values_to = "AUC") %>%
   ggplot(aes(x = time, y = AUC, col = model, linetype = sample))+
   geom_smooth(se = F, formula = y~s(x,  k=30, bs = "cs"),
@@ -258,3 +270,50 @@ bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) 
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))
 ggsave(filename = "tvauc_gam.png", path = "Images/data_appl", 
        width=15, height=4, bg="white")
+
+# out-of-sample SNP of ACM seems wired (too high)
+
+## only one fold
+## fold 1, 5  are abnormally high
+# many folds seems to have concordance closer to later (higher values)
+tvauc_out_df_gam %>% select(time, SNP, model, iter) %>% filter(model == "GAM") %>%
+  ggplot(aes(x = time, y = SNP))+
+  geom_point()+
+  facet_wrap(~iter)
+
+tvauc_in_df_gam %>% select(time, SNP, model, iter) %>% filter(model == "GAM") %>%
+  ggplot(aes(x = time, y = SNP))+
+  geom_point()+
+  facet_wrap(~iter)
+
+df_c_gam %>% filter(estimator=="SNP" & estimand == "Out-of-sample")
+
+bind_rows(tvauc_out_df_gam %>% select(time, SNP, model, iter) %>% filter(model == "GAM") %>% mutate(sample="out"),
+          tvauc_in_df_gam %>% select(time, SNP, model, iter) %>% filter(model == "GAM") %>% mutate(sample="in")) %>%
+  ggplot(aes(x = time, y = SNP, col=sample))+
+  geom_point()+
+  facet_wrap(~iter)
+  
+
+## suvival functions
+par(mfrow = c(2, 5))
+for(k in 1:nfolds){
+
+  df_test_k <- df_analysis_subj[inx_ls[[k]],]
+  KM_fit_test  <- survfit(Surv(event_time_years,mortstat) ~ 1, timefix=FALSE, data=df_test_k)
+  KM_est_test <- KM_fit_test$surv[KM_fit_test$n.event>0]
+  t_uni_test <- unique(df_test_k$event_time_years[df_test_k$mortstat==1])
+  fit_S <- scam(St ~ s(ut, bs="mpd", k = 20),
+                data=data.frame(ut=t_uni_test, St=KM_est_test))
+  df_pred <- data.frame(ut = rep(t_uni_test, each=2) + rep(c(-0.00001,0.00001), length(t_uni_test)))
+  # numerator
+  St_pred <- predict(fit_S, newdata=df_pred, type='response')
+  ft     <- -diff(St_pred)[seq(1,2*length(t_uni_test),by=2)]   
+  wt <- 2 * ft * KM_est_test
+  # denominator
+  
+  
+  plot(t_uni_test, KM_est_test, main = k)
+  
+}
+
