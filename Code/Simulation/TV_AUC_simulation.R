@@ -188,22 +188,34 @@ auc_df_long$name <- factor(auc_df_long$name, levels = c("HZ", "SNP", "NP"))
 table(auc_df_long$name)
 
 
-auc_df_long %>% 
+tvauc_line <- auc_df_long %>% 
   ggplot(aes(x=time, y=value, col=model, linetype = sample))+
   geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
               method = "gam")+
   geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
-  labs(x="time", y = "AUC")+
-  theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
+  labs(x="Time", y = "AUC", lintype = "Sample", col = "Model")+
+  theme(text = element_text(size = 18), axis.text = element_text(size = 10))+
   facet_wrap(~name)+
   scale_colour_manual(values=cbPalette)
 
-ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg = "white")
+
+annotate_figure(tvauc_line,
+                bottom = text_grob(
+                  "Figure 2: Comparing in-sample and out-of-sample Incident/Dynamic AUC estimates. Estimated value of AUC is smoothed across all simulations. Solid lines\nrepresent in-sample estimates and dashed lines represent out-of-sample estimates. Color of lines indicates the underlying model, where grey corresponds\nto the correctly specified model, yellow a moderately overfit model with 20 noise signals, blue a highly overfit model with 100 noise signals. The solid\nred line represents true value of AUC.",
+                  x = unit(0, "npc"),
+                  just = "left",
+                  face = "italic",
+                  size = 15))
+ggsave(filename = "tvauc_N250.eps", path = "Images/ImageEPS", width=15, height=6, bg ="white")
+
+#ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg = "white")
 #ggsave(filename = "tvauc_N500.png", path = "Images/N500", width=15, height=4, bg = "white")
+
+
 
 # spread of TV-AUC estimates
 brk <- seq(0, 1, 0.2) # bin time into five different bins
-ggarrange(
+tvauc_box <- ggarrange(
 auc_df_long %>%
   dplyr::select(-true) %>%
   filter(sample == "In-sample") %>%
@@ -211,12 +223,11 @@ auc_df_long %>%
   ggplot(aes(x = factor(time_bin), y = value, fill = name))+
   geom_boxplot(outlier.size = 0.5)+
   facet_grid(cols = vars(model))+
-  labs(x = "Time", y = "AUC", title = "In-sample")+
+  labs(x = "Time", y = "AUC", title = "In-sample", fill = "Estimator")+
   theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1), 
         text=element_text(size = 15),
         axis.text = element_text(size = 10))+
-  scale_fill_manual(values=cbPalette)+
-  labs(y="AUC"), 
+  scale_fill_manual(values=cbPalette),
 
 auc_df_long %>%
   dplyr::select(-true) %>%
@@ -225,13 +236,22 @@ auc_df_long %>%
   ggplot(aes(x = factor(time_bin), y = value, fill = name))+
   geom_boxplot(outlier.size = 0.5)+
   facet_grid(cols = vars(model))+
-  labs(x = "Time", y = "AUC", title = "Out-of-sample")+
+  labs(x = "Time", y = "AUC", title = "Out-of-sample", fill = "Estimator")+
   theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1), 
         text = element_text(size=15),
         axis.text = element_text(size = 10))+
-  scale_fill_manual(values=cbPalette)+
-  labs(y="AUC"), nrow=1, common.legend = T)
-ggsave(filename = "tvauc_box_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
+  scale_fill_manual(values=cbPalette), nrow=1, common.legend = T)
+annotate_figure(tvauc_box, 
+                bottom = text_grob(
+                  "Figure 3: Comparing variability of in-sample and out-of-sample Incident/Dynamic AUC estimates. The entire follow-up period is divided into five equal-length\nintervals, and each box represents AUC estimates in the corresponding time interval. Color of boxes indicates type of estimator, where grey represents\nsemi-parametric estimator, yellow the smoothed non-parametric estimator, and blue the non-parametric estimator.",
+                                   x = unit(0, "npc"),
+                                   just = "left",
+                                   face = "italic",
+                                   size = 15))
+ggsave(filename = "tvauc_box_N250.eps", path = "Images/ImageEPS", width=15, height=6, bg = "white")
+
+  # theme(plot.caption = element_text(size=10, face="italic", hjust=0))
+#ggsave(filename = "tvauc_box_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
 #ggsave(filename = "tvauc_box_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
 # concordance
@@ -244,7 +264,7 @@ c_df_long <- c_df %>%
          name = factor(name, levels = c("HZ","GH", "Harrell.s","NP","SNP"),
                        labels = c("HZ","GH", "Harrell","NP","SNP")))
 
-ggarrange(
+cbox <- ggarrange(
 c_df_long %>% 
   filter(sample == "In-sample") %>%
   ggplot(aes(x = name, y = value))+
@@ -254,7 +274,8 @@ c_df_long %>%
   theme(text = element_text(size = 12),
         axis.text = element_text(size=8))+
   scale_fill_manual(values=cbPalette)+
-  labs(y = "Concordance", x = "Estimator", title = "In-sample"),
+  labs(y = "Concordance", x = "Estimator", title = "In-sample")+
+  ylim(0.55, 1),
 
 c_df_long %>% 
   filter(sample == "Out-of-sample") %>%
@@ -265,8 +286,19 @@ c_df_long %>%
   theme(text = element_text(size = 12),
         axis.text = element_text(size=8))+
   scale_fill_manual(values=cbPalette)+
-  labs(y = "Concordance", x = "Estimator", title = "Out-of-sample"), nrow = 1, common.legend = T)
-ggsave(filename = "concordance_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
+  labs(y = "Concordance", x = "Estimator", title = "Out-of-sample")+
+  ylim(0.55, 1), 
+nrow = 1, common.legend = T)
+
+annotate_figure(cbox, 
+                bottom = text_grob(
+                  "Figure 4: Comparing in-sample and out-of-sample concordance estimator across all simulation. Color indicates type of estimators, where grey represents\nnon-parametric estimators and yellow represents semi-parametric estimators. The red horizontal lines is the true value of concordance.",
+                  x = unit(0, "npc"),
+                  just = "left",
+                  face = "italic",
+                  size = 15)
+                )
+ggsave(filename = "concordance_N250.eps", path = "Images/ImageEPS", width=15, height=6, bg = "white")
 #ggsave(filename = "concordance_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
 
