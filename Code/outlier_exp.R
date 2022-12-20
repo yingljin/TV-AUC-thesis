@@ -232,7 +232,7 @@ data_text <- data.frame("Estimator" = rep(paste0("Haegerty and Zheng 2005: t = "
                         "yind" = c(0.15,0.25))
 
 
-data_plt %>% 
+outlier_exp <- data_plt %>% 
     ggplot() + 
     geom_line(aes(x=FP, y=TP, color=Model)) + 
     theme_bw() +
@@ -242,8 +242,15 @@ data_plt %>%
   scale_color_manual(values = cbPalette)+
   theme(text=element_text(size=15),
         axis.text = element_text(size=10))
-ggsave(filename="outlier_exp.png", path="Images/", 
-       width=7, height=4, bg="white")
+annotate_figure(outlier_exp, 
+                bottom = text_grob(
+                  "Figure 1: Change of out-of-sample estimation after introducing one outlier. The datase\nrepresented by the yellow line has the same obesrvations with the grey line, expect one\noutlier with large risk score.",
+                  x = unit(0, "npc"), 
+                  just = "left",
+                  face = "italic",
+                  size = 12))
+ggsave(filename="outlier.eps", path="Images/ImageEPS", 
+       width=7, height=5, bg="white")
 
 # weight
 exp(marker_fake[300])/sum(exp(marker_fake[time_fake>=ti]))
