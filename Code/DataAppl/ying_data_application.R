@@ -215,10 +215,11 @@ for(k in 1:nfolds){
 
 ##### Figures #####
 ## concordance
+library(ggpubr)
 df_c_gam <- as.data.frame.table(c_gam) %>% mutate(model="GAM")
 df_c_lin <- as.data.frame.table(c_lin) %>% mutate(model = "Lin")
 
-bind_rows(df_c_gam, df_c_lin) %>% 
+c_box <- bind_rows(df_c_gam, df_c_lin) %>% 
   mutate(type = ifelse(estimator %in% c("Harrell", "NP","SNP"), 
                        "Non-parametric", "Semi-parametric")) %>% 
   mutate(model = factor(model, levels=c("GAM", "Lin"), labels = c("ACM", "LCM"))) %>%
@@ -229,17 +230,15 @@ bind_rows(df_c_gam, df_c_lin) %>%
         ylab("Concordance") + labs(fill="")+
   scale_fill_manual(values = cbPalette)+
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))
-ggsave(filename = "concordance.png", path = "Images/data_appl", width=10, height=8, bg = "white")
 
-# check concordance numbers
-## gam 
-df_c_gam %>% group_by(estimator, estimand) %>% summarise_at("Freq", mean)
+annotate_figure(c_box, 
+                bottom=text_grob("Figure A.1: Concordance estimates on NHANES data. Color of box indicates type of estimates, with yellow indicating semi-parametric and grey\nindicating non-parametric.",
+                                 x = unit(0, "npc"),
+                                 just = "left",
+                                 size = 10, 
+                                 face = "italic"))
+ggsave(filename = "concordance_appl.eps", path = "Images/ImageEPS", width=10, height=8, bg = "white")
 
-
-#bind_rows(df_c_gam, df_c_lin) %>% 
-#  group_by(estimator, estimand, model) %>% 
-#  summarise_at("Freq", mean)
-  
 
 ## TV-AUC
 tvauc_in_df_gam <- lapply(tvauc_in_gam, as.data.frame) %>%
@@ -258,18 +257,26 @@ tvauc_out_df_lin <- lapply(tvauc_out_lin, as.data.frame) %>%
   bind_rows(.id = "iter") %>%
   mutate(sample = "Out-of-sample" ,model = "Lin")
 
-bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) %>% 
+tvauc_line <- bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) %>% 
   mutate(model = factor(model, levels = c("GAM", "Lin"), labels = c("ACM","LCM"))) %>%
   pivot_longer(c("HZ", "NP", "SNP"), names_to = "Estimator", values_to = "AUC") %>%
   ggplot(aes(x = time, y = AUC, col = model, linetype = sample))+
   geom_smooth(se = F, formula = y~s(x,  k=30, bs = "cs"),
               na.rm = T, method = "gam")+
-  labs(x = "Time", y = "AUC")+
+  labs(x = "Time", y = "AUC", linetype = "Sample", col = "Model")+
   facet_grid(~Estimator)+
   scale_color_manual(values = cbPalette)+
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))
-ggsave(filename = "tvauc_gam.png", path = "Images/data_appl", 
-       width=15, height=4, bg="white")
+
+annotate_figure(tvauc_line, 
+                bottom=text_grob("Figure 5: Incident/Dynamic AUC estimates on NHANES data. Grey lines indicate the complicated additive Cox model, and yellow lines indicate the simple linear\nCox model. Solid lines indicate in-sample and dashed lines indicate out-of-sample estimates. For better visualization, estiamtes are smoothed over the follow-up\nperiod.",
+                                 x = unit(0, "npc"),
+                                 just = "left",
+                                 size = 15, 
+                                 face = "italic"))
+
+ggsave(filename = "tvauc_appl.eps", path = "Images/ImageEPS", 
+       width=15, height=6, bg="white")
 
 # out-of-sample SNP of ACM seems wired (too high)
 
