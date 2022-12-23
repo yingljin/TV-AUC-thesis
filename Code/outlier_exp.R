@@ -1,7 +1,10 @@
 rm(list=ls())
 library("survival");library("risksetROC"); library("glmnet")
+library(ggplot2)
+library("dplyr")
 theme_set(theme_minimal())
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+library(ggpubr)
 
 # set the seed
 set.seed(102131)
@@ -183,17 +186,7 @@ C_ins
 
 
 
-
-
-
-
-
-
-#####################
-## Some plots 
-####################
-library("ggplot2");
-library("dplyr")
+##### Figure #####
 
 
 ## To see what's happening, consider fixing t and looking at the ROC curve at a single point 
@@ -244,7 +237,7 @@ outlier_exp <- data_plt %>%
         axis.text = element_text(size=10))
 annotate_figure(outlier_exp, 
                 bottom = text_grob(
-                  "Figure 1: Change of out-of-sample estimation after introducing one outlier. The datase\nrepresented by the yellow line has the same obesrvations with the grey line, expect one\noutlier with large risk score.",
+                  "Figure 1: Change of out-of-sample estimation after introducing one outlier. The dataset\nrepresented by the yellow line has the same obesrvations with the grey line, except for one\noutlier with a large risk score.",
                   x = unit(0, "npc"), 
                   just = "left",
                   face = "italic",
@@ -255,17 +248,3 @@ ggsave(filename="outlier.eps", path="Images/ImageEPS",
 # weight
 exp(marker_fake[300])/sum(exp(marker_fake[time_fake>=ti]))
 
-
-# + 
-    ggtitle("Incident/Dynamic ROC Curve at a single time point \n Comparing Estimated Results when Adding in A Single Outlier ")
-
-figure_path <- "~/Desktop"
-jpeg(file.path(figure_path, "concordance_1_face_observation.jpeg"),height=400,width=550,quality=100)
-    data_plt %>% 
-        ggplot() + 
-        geom_line(aes(x=FP, y=TP, color=Model)) + 
-        facet_grid(. ~ Estimator) +  theme_bw() +
-        geom_text(  data=data_text, mapping = aes(x = xind, y =yind, label = label,color=Model)) + 
-        xlab("False Positive Rate") + ylab("True Positive Rate") + 
-        ggtitle("Incident/Dynamic ROC Curve at a single time point \n Comparing Estimated In-Sample Results when Adding in A Single Fake Outlier ")
-dev.off()

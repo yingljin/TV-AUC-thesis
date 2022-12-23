@@ -154,6 +154,8 @@ while(iter <= M){
 
 ##### Cleaning and formatting results #####
 
+
+
 ## AUC
 auc_df_train <- bind_rows(auc_lst_train, .id = "iter")
 auc_df_test <- bind_rows(auc_lst_test, .id = "iter")
@@ -165,8 +167,12 @@ c_df_train <- bind_rows(c_lst_train, .id = "iter")
 c_df_test <- bind_rows(c_lst_test, .id = "iter")
 c_df <- bind_rows(c_df_train, c_df_test, .id = "sample")
 
+# save data
+
+save(auc_df, c_df, file = "OutputData/sim_N250.RData")
+
 #### true AUC and concordance #####
-load(here("outputData/true_values.RData"))
+load(here("OutputData/true_values.RData"))
 
 # use interpolation to estimate AUC on simulated time series
 true_auc_sort <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
@@ -175,6 +181,8 @@ true_auc_sort <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc,
 
 
 #### Produce figures #####
+
+# load(here("OutputData/sim_N250.RData"))
 
 # trend of TV-AUC estimates (smoothed)
 auc_df_long <- auc_df %>% 
@@ -193,7 +201,7 @@ tvauc_line <- auc_df_long %>%
   geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
               method = "gam")+
   geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
-  labs(x="Time", y = "AUC", lintype = "Sample", col = "Model")+
+  labs(x="Time", y = "AUC", linetype = "Sample", col = "Model")+
   theme(text = element_text(size = 18), axis.text = element_text(size = 10))+
   facet_wrap(~name)+
   scale_colour_manual(values=cbPalette)
@@ -206,7 +214,7 @@ annotate_figure(tvauc_line,
                   just = "left",
                   face = "italic",
                   size = 15))
-ggsave(filename = "tvauc_N250.eps", path = "Images/ImageEPS", width=15, height=6, bg ="white")
+ggsave(filename = "YingJin_Figure2.eps", path = "Images/ImageEPS", width=15, height=6, bg ="white")
 
 #ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg = "white")
 #ggsave(filename = "tvauc_N500.png", path = "Images/N500", width=15, height=4, bg = "white")
@@ -248,7 +256,7 @@ annotate_figure(tvauc_box,
                                    just = "left",
                                    face = "italic",
                                    size = 15))
-ggsave(filename = "tvauc_box_N250.eps", path = "Images/ImageEPS", width=15, height=6, bg = "white")
+ggsave(filename = "YingJin_Figure3.eps", path = "Images/ImageEPS", width=15, height=6, bg = "white")
 
   # theme(plot.caption = element_text(size=10, face="italic", hjust=0))
 #ggsave(filename = "tvauc_box_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
@@ -292,13 +300,13 @@ nrow = 1, common.legend = T)
 
 annotate_figure(cbox, 
                 bottom = text_grob(
-                  "Figure 4: Comparing in-sample and out-of-sample concordance estimator across all simulation. Color indicates type of estimators, where grey represents\nnon-parametric estimators and yellow represents semi-parametric estimators. The red horizontal lines is the true value of concordance.",
+                  "Figure 4: Comparing in-sample and out-of-sample concordance estimator across all simulation. Color indicates type of estimators, where grey represents\nnon-parametric estimators and yellow represents semi-parametric estimators. The red horizontal line is the true value of concordance.",
                   x = unit(0, "npc"),
                   just = "left",
                   face = "italic",
                   size = 15)
                 )
-ggsave(filename = "concordance_N250.eps", path = "Images/ImageEPS", width=15, height=6, bg = "white")
+ggsave(filename = "YingJin_Figure4.eps", path = "Images/ImageEPS", width=15, height=6, bg = "white")
 #ggsave(filename = "concordance_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
 
