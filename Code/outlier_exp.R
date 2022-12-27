@@ -235,14 +235,14 @@ outlier_exp <- data_plt %>%
   scale_color_manual(values = cbPalette)+
   theme(text=element_text(size=15),
         axis.text = element_text(size=10))
-annotate_figure(outlier_exp, 
-                bottom = text_grob(
-                  "Figure 1: Change of out-of-sample estimation after introducing one outlier. The dataset\nrepresented by the yellow line has the same obesrvations with the grey line, except for one\noutlier with a large risk score.",
-                  x = unit(0, "npc"), 
-                  just = "left",
-                  face = "italic",
-                  size = 12))
-ggsave(filename="outlier.eps", path="Images/ImageEPS", 
+# annotate_figure(outlier_exp, 
+#                 bottom = text_grob(
+#                   "Figure 1: Change of out-of-sample estimation after introducing one outlier. The dataset\nrepresented by the yellow line has the same obesrvations with the grey line, except for one\noutlier with a large risk score.",
+#                   x = unit(0, "npc"), 
+#                   just = "left",
+#                   face = "italic",
+#                   size = 12))
+ggsave(filename="YingJin_Figure1.eps", path="Images/ImageEPS", 
        width=7, height=5, bg="white")
 
 # weight

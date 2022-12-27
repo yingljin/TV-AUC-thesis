@@ -182,7 +182,7 @@ true_auc_sort <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc,
 
 #### Produce figures #####
 
-# load(here("OutputData/sim_N250.RData"))
+load(here("OutputData/sim_N250.RData"))
 
 # trend of TV-AUC estimates (smoothed)
 auc_df_long <- auc_df %>% 
@@ -207,14 +207,14 @@ tvauc_line <- auc_df_long %>%
   scale_colour_manual(values=cbPalette)
 
 
-annotate_figure(tvauc_line,
-                bottom = text_grob(
-                  "Figure 2: Comparing in-sample and out-of-sample Incident/Dynamic AUC estimates. Estimated value of AUC is smoothed across all simulations. Solid lines\nrepresent in-sample estimates and dashed lines represent out-of-sample estimates. Color of lines indicates the underlying model, where grey corresponds\nto the correctly specified model, yellow a moderately overfit model with 20 noise signals, blue a highly overfit model with 100 noise signals. The solid\nred line represents true value of AUC.",
-                  x = unit(0, "npc"),
-                  just = "left",
-                  face = "italic",
-                  size = 15))
-ggsave(filename = "YingJin_Figure2.eps", path = "Images/ImageEPS", width=15, height=6, bg ="white")
+# annotate_figure(tvauc_line,
+#                 bottom = text_grob(
+#                   "Figure 2: Comparing in-sample and out-of-sample Incident/Dynamic AUC estimates. Estimated value of AUC is smoothed across all simulations. Solid lines\nrepresent in-sample estimates and dashed lines represent out-of-sample estimates. Color of lines indicates the underlying model, where grey corresponds\nto the correctly specified model, yellow a moderately overfit model with 20 noise signals, blue a highly overfit model with 100 noise signals. The solid\nred line represents true value of AUC.",
+#                   x = unit(0, "npc"),
+#                   just = "left",
+#                   face = "italic",
+#                   size = 15))
+ggsave(filename = "YingJin_Figure2.eps", path = "Images/ImageEPS", width=20, height=6, bg ="white")
 
 #ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg = "white")
 #ggsave(filename = "tvauc_N500.png", path = "Images/N500", width=15, height=4, bg = "white")
@@ -249,14 +249,14 @@ auc_df_long %>%
         text = element_text(size=15),
         axis.text = element_text(size = 10))+
   scale_fill_manual(values=cbPalette), nrow=1, common.legend = T)
-annotate_figure(tvauc_box, 
-                bottom = text_grob(
-                  "Figure 3: Comparing variability of in-sample and out-of-sample Incident/Dynamic AUC estimates. The entire follow-up period is divided into five equal-length\nintervals, and each box represents AUC estimates in the corresponding time interval. Color of boxes indicates type of estimator, where grey represents\nsemi-parametric estimator, yellow the smoothed non-parametric estimator, and blue the non-parametric estimator.",
-                                   x = unit(0, "npc"),
-                                   just = "left",
-                                   face = "italic",
-                                   size = 15))
-ggsave(filename = "YingJin_Figure3.eps", path = "Images/ImageEPS", width=15, height=6, bg = "white")
+# annotate_figure(tvauc_box, 
+#                 bottom = text_grob(
+#                   "Figure 3: Comparing variability of in-sample and out-of-sample Incident/Dynamic AUC estimates. The entire follow-up period is divided into five equal-length\nintervals, and each box represents AUC estimates in the corresponding time interval. Color of boxes indicates type of estimator, where grey represents\nsemi-parametric estimator, yellow the smoothed non-parametric estimator, and blue the non-parametric estimator.",
+#                                    x = unit(0, "npc"),
+#                                    just = "left",
+#                                    face = "italic",
+#                                    size = 15))
+ggsave(filename = "YingJin_Figure3.eps", path = "Images/ImageEPS", width=20, height=6, bg = "white")
 
   # theme(plot.caption = element_text(size=10, face="italic", hjust=0))
 #ggsave(filename = "tvauc_box_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
@@ -298,15 +298,15 @@ c_df_long %>%
   ylim(0.55, 1), 
 nrow = 1, common.legend = T)
 
-annotate_figure(cbox, 
-                bottom = text_grob(
-                  "Figure 4: Comparing in-sample and out-of-sample concordance estimator across all simulation. Color indicates type of estimators, where grey represents\nnon-parametric estimators and yellow represents semi-parametric estimators. The red horizontal line is the true value of concordance.",
-                  x = unit(0, "npc"),
-                  just = "left",
-                  face = "italic",
-                  size = 15)
-                )
-ggsave(filename = "YingJin_Figure4.eps", path = "Images/ImageEPS", width=15, height=6, bg = "white")
+# annotate_figure(cbox, 
+#                 bottom = text_grob(
+#                   "Figure 4: Comparing in-sample and out-of-sample concordance estimator across all simulation. Color indicates type of estimators, where grey represents\nnon-parametric estimators and yellow represents semi-parametric estimators. The red horizontal line is the true value of concordance.",
+#                   x = unit(0, "npc"),
+#                   just = "left",
+#                   face = "italic",
+#                   size = 15)
+#                 )
+ggsave(filename = "YingJin_Figure4.eps", path = "Images/ImageEPS", width=20, height=6, bg = "white")
 #ggsave(filename = "concordance_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
 

@@ -218,6 +218,9 @@ for(k in 1:nfolds){
 library(ggpubr)
 df_c_gam <- as.data.frame.table(c_gam) %>% mutate(model="GAM")
 df_c_lin <- as.data.frame.table(c_lin) %>% mutate(model = "Lin")
+save(df_c_gam, df_c_lin, file = "OutputData/data_appl.RData")
+
+# load(here("OutputData/data_appl.RData"))
 
 c_box <- bind_rows(df_c_gam, df_c_lin) %>% 
   mutate(type = ifelse(estimator %in% c("Harrell", "NP","SNP"), 
@@ -231,13 +234,13 @@ c_box <- bind_rows(df_c_gam, df_c_lin) %>%
   scale_fill_manual(values = cbPalette)+
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))
 
-annotate_figure(c_box, 
-                bottom=text_grob("Figure A.1: Concordance estimates on NHANES data. Color of box indicates type of estimates, with yellow indicating semi-parametric and grey\nindicating non-parametric.",
-                                 x = unit(0, "npc"),
-                                 just = "left",
-                                 size = 10, 
-                                 face = "italic"))
-ggsave(filename = "concordance_appl.eps", path = "Images/ImageEPS", width=10, height=8, bg = "white")
+# annotate_figure(c_box, 
+#                 bottom=text_grob("Figure A.1: Concordance estimates on NHANES data. Color of box indicates type of estimates, with yellow indicating semi-parametric and grey\nindicating non-parametric.",
+#                                  x = unit(0, "npc"),
+#                                  just = "left",
+#                                  size = 10, 
+#                                  face = "italic"))
+ggsave(filename = "YingJin_FigureA1.eps", path = "Images/ImageEPS", width=10, height=8, bg = "white")
 
 
 ## TV-AUC
@@ -268,15 +271,15 @@ tvauc_line <- bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvau
   scale_color_manual(values = cbPalette)+
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))
 
-annotate_figure(tvauc_line, 
-                bottom=text_grob("Figure 5: Incident/Dynamic AUC estimates on NHANES data. Grey lines indicate the complicated additive Cox model, and yellow lines indicate the simple linear\nCox model. Solid lines indicate in-sample and dashed lines indicate out-of-sample estimates. For better visualization, estiamtes are smoothed over the follow-up\nperiod.",
-                                 x = unit(0, "npc"),
-                                 just = "left",
-                                 size = 15, 
-                                 face = "italic"))
+# annotate_figure(tvauc_line, 
+#                 bottom=text_grob("Figure 5: Incident/Dynamic AUC estimates on NHANES data. Grey lines indicate the complicated additive Cox model, and yellow lines indicate the simple linear\nCox model. Solid lines indicate in-sample and dashed lines indicate out-of-sample estimates. For better visualization, estiamtes are smoothed over the follow-up\nperiod.",
+#                                  x = unit(0, "npc"),
+#                                  just = "left",
+#                                  size = 15, 
+#                                  face = "italic"))
 
-ggsave(filename = "tvauc_appl.eps", path = "Images/ImageEPS", 
-       width=15, height=6, bg="white")
+ggsave(filename = "YingJin_Figure5.eps", path = "Images/ImageEPS", 
+       width=20, height=6, bg="white")
 
 # out-of-sample SNP of ACM seems wired (too high)
 
