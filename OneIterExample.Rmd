@@ -12,12 +12,15 @@ vignette: >
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>"
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 4
 )
 
 # packages
 library("survival")
 library("ggplot2")
+theme_minimal()
 library(ggpubr)
 library("cubature")
 library("tidyverse")
@@ -68,7 +71,7 @@ data$X <- I(X)
 data$Z <- I(Z)
 ```
 
-```{r}
+```{r, fig.width=6}
 # number of event and censor
 table(data$event)
 # Kaplan-Meier curve
@@ -119,7 +122,7 @@ Now that we have a dataset, we can evaluated the Incident/Dynamic AUC estimators
 
 - Smoothed non-parametric estimator (SNP). This is a smoothed version of the non-parametric estimator above.
 
-At a speficit time point, all three methods estimate sensitivity and specificity at a series of discrete values of $\boldsymbol{X}^T\boldsymbol{\beta}$ to get an ROC curve, and use its integral as estimate of Incident/Dynamic AUC.
+At a specificity time point, all three methods estimate sensitivity and specificity at a series of discrete values of $\boldsymbol{X}^T\boldsymbol{\beta}$ to get an ROC curve, and use its integral as estimate of Incident/Dynamic AUC.
 
 ```{r}
 # in-sample estimates
@@ -191,6 +194,63 @@ ggarrange(
 ```
 
 
+# Concordance estimators:
+
+Once we have the Incident/Dynamic AUC estimates from the previous section, we can use their weighted integral for estimation of concordance. The weights are derived from marginal survival and density function. Therefore, we need to fit a Kaplan-Meier curve first and extract survival probability at each unique even time:
+
+```{r}
+# in-sample
+KM_fit_train <- survfit(Surv(time,event)~1, timefix=FALSE, data=data_train)
+KM_est_train <- KM_fit_train$surv[KM_fit_train$n.event>0]
+# out-of-sample
+KM_fit_test <- survfit(Surv(time,event)~1, timefix=FALSE, data=data_test)
+KM_est_test <- KM_fit_test$surv[KM_fit_test$n.event>0]
+# figure
+par(mfrow=c(1, 2))
+plot(KM_fit_train, main = "In-sample Kaplan-Meier curve")
+plot(KM_fit_test, main = "Out-of-sample Kaplan-Meier curve")
+```
+
+Now we can use the functions we wrote to calculate concordance. Please note that the Kaplan-Meier curve is smoothed in the \textit{intAUC} function, since it is a step function whose derivative cannot be easily calculated. The density function used in weights is in fact the derivative of smoothed survival function.
+
+In addition to concordance estimated by integral, we have also included Harrel's C-index (fully non-parametric) and Gonen & Heller concordance (semi-parametric) for reference.
 
 
+```{r}
+# in-sample
+concord1 <- train_concord(auc_mat = auc_est1, fit = fit_1)
+concord2 <- train_concord(auc_mat = auc_est2, fit = fit_2)
+concord3 <- train_concord(auc_mat = auc_est3, fit = fit_3)
+# out-of-sample
+test_concord1 <- test_concord(auc_mat = test_auc_est1, fit = fit_1, 
+                                  eta = test_eta1, 
+                                  X_mat = data_test$X)
+test_concord2 <- test_concord(auc_mat = test_auc_est2, fit = fit_2, 
+                                eta = test_eta2,
+                                X_mat = cbind(data_test$X,data_test$Z[,1:20]))
+test_concord3 <- test_concord(auc_mat = test_auc_est3, fit = fit_3, 
+                                eta = test_eta3,
+                                X_mat = cbind(data_test$X,data_test$Z))
+```
 
+Now let's take a brief look at the results: 
+
+```{r, echo=FALSE}
+concord_est_train <- rbind(concord1, concord2, concord3) %>%
+  data.frame() %>%
+     mutate(Model = factor(c("No noise", "20 noise", "100 noise"), 
+                           levels = c("No noise", "20 noise", "100 noise")),
+            Sample = "In-sample") 
+
+concord_est_test <- rbind(test_concord1, test_concord2, test_concord3) %>%
+      data.frame() %>%
+      mutate(Model = factor(c("No noise", "20 noise", "100 noise"), 
+                           levels = c("No noise", "20 noise", "100 noise")), 
+             Sample = "Out-of-sample") 
+
+bind_rows(concord_est_train, concord_est_test) %>%
+  pivot_longer(1:5, names_to = "Estimator", values_to = "Concordance") %>%
+  ggplot()+
+  geom_line(aes(x=Model, y=Concordance, col=Estimator, group = Estimator))+
+  facet_wrap(~Sample)
+```
