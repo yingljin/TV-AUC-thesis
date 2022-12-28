@@ -40,7 +40,6 @@ vignettes/*.pdf
 *.xport
 # Access
 *.mdb
-Data/*
 OutputData/*
 Docs/*
 screenshots/*
