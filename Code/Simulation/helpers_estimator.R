@@ -8,7 +8,7 @@
 ## t: unique event time in training data
 ## eta: risk score corresponding to t 
 
-train_auc <- function(fit, data = data_train,
+train_auc <- function(eta, data = data_train, 
                       t = t_uni_train, nt = nt_uni_train){
   # set up results container
   auc_mat <- matrix(NA, nrow = nt, ncol = 4)
@@ -16,7 +16,7 @@ train_auc <- function(fit, data = data_train,
   auc_mat[, "time"] <- t
   
   # estimated risk score
-  data$eta <- fit$linear.predictors
+  data$eta <- eta
   
   # cauclate in-sample AUC
   for(i in seq_along(t)){

@@ -15,6 +15,7 @@ library(risksetROC)
 library(mgcv)
 library(scam)
 library("clinfun")
+library(glmnet)
 theme_set(theme_minimal())
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
@@ -70,12 +71,29 @@ while(iter <= M){
   data_test  <- data[-c(1:N_obs),]
   
   # fit our 3 models with different number of noise predictors (0, 20, 100)
+  # and the latter two with penalization
   fit_1 <- tryCatch(expr = coxph(Surv(time, event) ~ X, data=data_train), 
                     warning = function(x){NULL})
+  
   fit_2 <- tryCatch(expr = coxph(Surv(time, event) ~ X + Z[,1:20], data=data_train), 
                     warning = function(x){NULL})
+  
+  # cross validation paritial likelihood -based criterion
+  fit_2_lasso_cv <- cv.glmnet(x = cbind(data_train$X, data_train$Z[, 1:20]), 
+                        y= Surv(time = data_train$time, event = data_train$event, type = "right"), 
+                        family = "cox")
+  fit_2_lasso <- glmnet(x = cbind(data_train$X, data_train$Z[, 1:20]), 
+                        y= Surv(time = data_train$time, event = data_train$event, type = "right"), 
+                        family = "cox", lambda =  fit_2_lasso_cv$lambda.min)
+    
   fit_3 <- tryCatch(expr = coxph(Surv(time, event) ~ X + Z, data=data_train),
                     warning = function(x){NULL})
+  fit_3_lasso_cv <- cv.glmnet(x = cbind(data_train$X, data_train$Z), 
+                              y= Surv(time = data_train$time, event = data_train$event, type = "right"), 
+                              family = "cox")
+  fit_3_lasso <- glmnet(x = cbind(data_train$X, data_train$Z), 
+                        y= Surv(time = data_train$time, event = data_train$event, type = "right"), 
+                        family = "cox", lambda =  fit_2_lasso_cv$lambda.min)
   
   # if all of the models covereged
   if(!is_null(fit_1) & !is.null(fit_2) & !is.null(fit_3)){
@@ -89,9 +107,13 @@ while(iter <= M){
     nt_uni_train <- length(t_uni_train)
   
     ## in-sample AUC and concordance estimates
-    auc_est1 <- train_auc(fit_1)
-    auc_est2 <- train_auc(fit_2)
-    auc_est3 <- train_auc(fit_3)
+    auc_est1 <- train_auc(eta=fit_1$linear.predictors)
+    auc_est2 <- train_auc(eta=fit_2$linear.predictors)
+    auc_est2_lasso <- train_auc(eta=cbind(data_train$X, data_train$Z[, 1:20]) %*% coef(fit_2_lasso)[,1])
+    auc_est3 <- train_auc(eta=fit_3$linear.predictors)
+    auc_est3_lasso <- train_auc(eta=cbind(data_train$X, data_train$Z) %*% coef(fit_3_lasso)[,1] )
+    
+    
     concord1 <- train_concord(auc_mat = auc_est1, fit = fit_1)
     concord2 <- train_concord(auc_mat = auc_est2, fit = fit_2)
     concord3 <- train_concord(auc_mat = auc_est3, fit = fit_3)
@@ -107,7 +129,9 @@ while(iter <= M){
     ## estimated risk scores
     test_eta1 <- as.vector(data_test$X %*% coef(fit_1))
     test_eta2 <- as.vector(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2))
+    test_eta2_lasso <- as.vector(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2_lasso))
     test_eta3 <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3))
+    test_eta3_lasso <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3_lasso))
     t_uni_test <- unique(data_test$time[data_test$event==1])
     nt_uni_test <- length(t_uni_test)
   
@@ -118,7 +142,9 @@ while(iter <= M){
     ## in-sample AUC and concordance estimates
     test_auc_est1 <- test_auc(test_eta1)
     test_auc_est2 <- test_auc(test_eta2)
+    test_auc_est2_lasso <- test_auc(test_eta2_lasso)
     test_auc_est3 <- test_auc(test_eta3)
+    test_auc_est3_lasso <- test_auc(test_eta3_lasso)
     test_concord1 <- test_concord(auc_mat = test_auc_est1, fit = fit_1, 
                                   eta = test_eta1, 
                                   X_mat = data_test$X)
