@@ -101,13 +101,13 @@ intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, 
 }
 
 ##### Gonen & Heller #####
-coxphCPE_eta <- function (phfit, Xmat){
-  if (class(phfit) != "coxph") 
-    stop("phfit shoud be coxph class object")
+coxphCPE_eta <- function (betahat,Xmat){
+  # if (class(phfit) != "coxph") 
+  #   stop("phfit shoud be coxph class object")
   n <- nrow(Xmat)
-  betahat <- phfit$coefficients
-  p <- length(phfit$coefficients)
-  vbetahat <- phfit$var
+  # betahat <- phfit$coefficients
+  p <- length(betahat)
+  # vbetahat <- phfit$var
   xbeta <- Xmat%*%betahat
   bw <- 0.5 * sd(xbeta) * (n^(-1/3))
   zzz <- .Fortran("cpesub", as.integer(n), as.integer(p), as.double(Xmat), 
@@ -115,16 +115,16 @@ coxphCPE_eta <- function (phfit, Xmat){
                   varDeriv = double(p), uRowSum = double(n), uSSQ = double(1), 
                   PACKAGE = "clinfun")
   CPE <- 2 * zzz$CPE/(n * (n - 1))
-  CPEsmooth <- 2 * zzz$CPEsmooth/(n * (n - 1))
-  varTerm1 <- 4 * (sum((zzz$uRowSum + rep(0.5, n) - n * CPEsmooth)^2) -
-                     (zzz$uSSQ + n/4 - n * CPEsmooth - n * (n - 2) * CPEsmooth^2))/(n *
-                                                                                      (n - 1))^2
-  varDeriv <- 2 * zzz$varDeriv/(n * (n - 1))
-  varTerm2 <- t(varDeriv) %*% vbetahat %*% varDeriv
-  varCPE <- varTerm1 + varTerm2
-  out <- c(CPE, CPEsmooth, sqrt(varCPE))
-  names(out) <- c("CPE", "smooth.CPE", "se.CPE")
-  return(out)
+  # CPEsmooth <- 2 * zzz$CPEsmooth/(n * (n - 1))
+  # varTerm1 <- 4 * (sum((zzz$uRowSum + rep(0.5, n) - n * CPEsmooth)^2) -
+  #                    (zzz$uSSQ + n/4 - n * CPEsmooth - n * (n - 2) * CPEsmooth^2))/(n *
+  #                                                                                     (n - 1))^2
+  # varDeriv <- 2 * zzz$varDeriv/(n * (n - 1))
+  # varTerm2 <- t(varDeriv) %*% vbetahat %*% varDeriv
+  # varCPE <- varTerm1 + varTerm2
+  # out <- c(CPE, CPEsmooth, sqrt(varCPE))
+  # names(out) <- c("CPE", "smooth.CPE", "se.CPE")
+  return(CPE)
 }
 
 

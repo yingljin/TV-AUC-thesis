@@ -30,7 +30,7 @@ source("Code/Simulation/helpers_estimator.R")
 
 #### Simulation set up ####
 
-M <- 1000 # number of simulated data sets
+M <- 5 # number of simulated data sets
 N <- 500 # number of subjects
 #N <- 1000 # number of subjects
 Beta <- c(1,-1,0.25)
@@ -71,7 +71,7 @@ while(iter <= M){
   data_test  <- data[-c(1:N_obs),]
   
   # fit our 3 models with different number of noise predictors (0, 20, 100)
-  # and the latter two with penalization
+  # and the latter two with lasso penalization
   fit_1 <- tryCatch(expr = coxph(Surv(time, event) ~ X, data=data_train), 
                     warning = function(x){NULL})
   
@@ -80,7 +80,7 @@ while(iter <= M){
   
   # cross validation paritial likelihood -based criterion
   fit_2_lasso_cv <- cv.glmnet(x = cbind(data_train$X, data_train$Z[, 1:20]), 
-                        y= Surv(time = data_train$time, event = data_train$event, type = "right"), 
+                        y = Surv(time = data_train$time, event = data_train$event, type = "right"), 
                         family = "cox")
   fit_2_lasso <- glmnet(x = cbind(data_train$X, data_train$Z[, 1:20]), 
                         y= Surv(time = data_train$time, event = data_train$event, type = "right"), 
@@ -106,32 +106,40 @@ while(iter <= M){
     t_uni_train <- unique(data_train$time[data_train$event==1])
     nt_uni_train <- length(t_uni_train)
   
-    ## in-sample AUC and concordance estimates
-    auc_est1 <- train_auc(eta=fit_1$linear.predictors)
-    auc_est2 <- train_auc(eta=fit_2$linear.predictors)
-    auc_est2_lasso <- train_auc(eta=cbind(data_train$X, data_train$Z[, 1:20]) %*% coef(fit_2_lasso)[,1])
-    auc_est3 <- train_auc(eta=fit_3$linear.predictors)
-    auc_est3_lasso <- train_auc(eta=cbind(data_train$X, data_train$Z) %*% coef(fit_3_lasso)[,1] )
+    ## in-sample AUC 
+    auc_est1 <- tv_auc(eta=fit_1$linear.predictors, data=data_train, t=t_uni_train, nt=nt_uni_train)
+    auc_est2 <- tv_auc(eta=fit_2$linear.predictors, data=data_train, t=t_uni_train, nt=nt_uni_train)
+    auc_est2_lasso <- tv_auc(eta=cbind(data_train$X, data_train$Z[, 1:20]) %*% coef(fit_2_lasso)[,1],
+                                data=data_train, t=t_uni_train, nt=nt_uni_train)
+    auc_est3 <- tv_auc(eta=fit_3$linear.predictors, data=data_train, t=t_uni_train, nt=nt_uni_train)
+    auc_est3_lasso <- tv_auc(eta=cbind(data_train$X, data_train$Z) %*% coef(fit_3_lasso)[,1], 
+                             data=data_train, t=t_uni_train, nt=nt_uni_train )
     
+    ## in-sample concordance
+    concord1 <- concord(data_train, KM_est_train, auc_est1, fit_1$coefficients, data_train$X)
+    concord2 <- concord(data_train, KM_est_train, auc_est2, fit_2$coefficients,
+                        cbind(data_train$X,data_train$Z[,1:20]))
+    concord2_lasso <- concord(data_train, KM_est_train, auc_est2_lasso, coef(fit_2_lasso), 
+                              cbind(data_train$X,data_train$Z[,1:20]))
+    concord3 <- concord(data_train, KM_est_train, auc_est3, fit_3$coefficients, cbind(data_train$X,data_train$Z))
+    concord3_lasso <- concord(data_train, KM_est_train, auc_est3_lasso, coef(fit_3_lasso), 
+                              cbind(data_train$X,data_train$Z))
     
-    concord1 <- train_concord(auc_mat = auc_est1, fit = fit_1)
-    concord2 <- train_concord(auc_mat = auc_est2, fit = fit_2)
-    concord3 <- train_concord(auc_mat = auc_est3, fit = fit_3)
-    auc_est_train <- rbind(auc_est1, auc_est2, auc_est3) %>%
+    auc_est_train <- rbind(auc_est1, auc_est2, auc_est2_lasso, auc_est3, auc_est3_lasso) %>%
       data.frame() %>%
-      mutate(model = rep(c("No noise", "20 noise", "100 noise"), 
+      mutate(model = rep(c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized"), 
                          each = nt_uni_train))
-    concord_est_train <- rbind(concord1, concord2, concord3) %>%
+    concord_est_train <- rbind(concord1, concord2, concord2_lasso, concord3, concord3_lasso) %>%
       data.frame() %>%
-      mutate(model = c("No noise", "20 noise", "100 noise")) 
+      mutate(model = c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized")) 
   
     # out-of-sample 
     ## estimated risk scores
-    test_eta1 <- as.vector(data_test$X %*% coef(fit_1))
-    test_eta2 <- as.vector(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2))
-    test_eta2_lasso <- as.vector(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2_lasso))
-    test_eta3 <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3))
-    test_eta3_lasso <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3_lasso))
+    # test_eta1 <- as.vector(data_test$X %*% coef(fit_1))
+    # test_eta2 <- as.vector(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2))
+    # test_eta2_lasso <- as.vector(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2_lasso))
+    # test_eta3 <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3))
+    # test_eta3_lasso <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3_lasso))
     t_uni_test <- unique(data_test$time[data_test$event==1])
     nt_uni_test <- length(t_uni_test)
   
@@ -139,28 +147,31 @@ while(iter <= M){
     KM_fit_test <- survfit(Surv(time,event)~1, timefix=FALSE,data=data_test)
     KM_est_test <- KM_fit_test$surv[KM_fit_test$n.event>0]
   
-    ## in-sample AUC and concordance estimates
-    test_auc_est1 <- test_auc(test_eta1)
-    test_auc_est2 <- test_auc(test_eta2)
-    test_auc_est2_lasso <- test_auc(test_eta2_lasso)
-    test_auc_est3 <- test_auc(test_eta3)
-    test_auc_est3_lasso <- test_auc(test_eta3_lasso)
-    test_concord1 <- test_concord(auc_mat = test_auc_est1, fit = fit_1, 
-                                  eta = test_eta1, 
-                                  X_mat = data_test$X)
-    test_concord2 <- test_concord(auc_mat = test_auc_est2, fit = fit_2, 
-                                eta = test_eta2,
-                                X_mat = cbind(data_test$X,data_test$Z[,1:20]))
-    test_concord3 <- test_concord(auc_mat = test_auc_est3, fit = fit_3, 
-                                eta = test_eta3,
-                                X_mat = cbind(data_test$X,data_test$Z))
-    auc_est_test <- rbind(test_auc_est1, test_auc_est2, test_auc_est3) %>%
+    ## out-of-sample AUC 
+    test_auc_est1 <- tv_auc(data_test$X %*% coef(fit_1), data_test, t_uni_test, nt_uni_test)
+    test_auc_est2 <- tv_auc(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2), data_test, t_uni_test, nt_uni_test)
+    test_auc_est2_lasso <- tv_auc(cbind(data_test$X,data_test$Z[,1:20]) %*% coef(fit_2_lasso),
+                                  data_test, t_uni_test, nt_uni_test)
+    test_auc_est3 <- tv_auc(cbind(data_test$X,data_test$Z) %*% coef(fit_3), data_test, t_uni_test, nt_uni_test)
+    test_auc_est3_lasso <- tv_auc(cbind(data_test$X,data_test$Z) %*% coef(fit_3_lasso),
+                                  data_test, t_uni_test, nt_uni_test)
+    ## out-of-sample concordance estimates
+    test_concord1 <- concord(data_test, KM_est_test, test_auc_est1, fit_1$coefficients, data_test$X)
+    test_concord2 <- concord(data_test, KM_est_test, test_auc_est2, fit_2$coefficients,
+                             cbind(data_test$X,data_test$Z[,1:20]))
+    test_concord2_lasso <- concord(data_test, KM_est_test, test_auc_est2_lasso, coef(fit_2_lasso), 
+                                   cbind(data_test$X,data_test$Z[,1:20]))
+    test_concord3 <- concord(data_test, KM_est_test, test_auc_est3,  fit_3$coefficients, cbind(data_test$X,data_test$Z))
+    test_concord3_lasso <- concord(data_test, KM_est_test, test_auc_est3_lasso, coef(fit_3_lasso), 
+                                   cbind(data_test$X,data_test$Z))
+    
+    auc_est_test <- rbind(test_auc_est1, test_auc_est2, test_auc_est2_lasso, test_auc_est3, test_auc_est3_lasso) %>%
       data.frame() %>%
-      mutate(model = rep(c("No noise", "20 noise", "100 noise"), 
+      mutate(model = rep(c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized"), 
                        each = nt_uni_test))
-    concord_est_test <- rbind(test_concord1, test_concord2, test_concord3) %>%
+    concord_est_test <- rbind(test_concord1, test_concord2, test_concord2_lasso, test_concord3, test_concord3_lasso) %>%
       data.frame() %>%
-      mutate(model = c("No noise", "20 noise", "100 noise")) 
+      mutate(model = c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized")) 
   
     # save to final results
     auc_lst_train[[iter]] <- auc_est_train
@@ -204,11 +215,11 @@ true_auc_sort <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc,
 
 # trend of TV-AUC estimates (smoothed)
 auc_df_long <- auc_df %>% 
-  mutate(true = true_auc_sort,
+  mutate(# true = true_auc_sort,
          sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
   pivot_longer(4:6) 
 
-auc_df_long$model <- factor(auc_df_long$model, levels = c("No noise", "20 noise", "100 noise"))
+auc_df_long$model <- factor(auc_df_long$model, levels =  c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized"))
 table(auc_df_long$model)
 auc_df_long$name <- factor(auc_df_long$name, levels = c("HZ", "SNP", "NP"))
 table(auc_df_long$name)
@@ -218,7 +229,7 @@ auc_df_long %>%
   ggplot(aes(x=time, y=value, col=model, linetype = sample))+
   geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
               method = "gam")+
-  geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
+  # geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
   labs(x="time", y = "AUC")+
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
   facet_wrap(~name)+
@@ -231,7 +242,7 @@ ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg
 brk <- seq(0, 1, 0.2) # bin time into five different bins
 ggarrange(
 auc_df_long %>%
-  dplyr::select(-true) %>%
+  # dplyr::select(-true) %>%
   filter(sample == "In-sample") %>%
   mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
   ggplot(aes(x = factor(time_bin), y = value, fill = name))+
@@ -245,7 +256,7 @@ auc_df_long %>%
   labs(y="AUC"), 
 
 auc_df_long %>%
-  dplyr::select(-true) %>%
+  # dplyr::select(-true) %>%
   filter(sample == "Out-of-sample") %>%
   mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
   ggplot(aes(x = factor(time_bin), y = value, fill = name))+
@@ -266,7 +277,7 @@ c_df_long <- c_df %>%
   mutate(sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
   pivot_longer(3:7) %>%
   mutate(Type = ifelse(name=="HZ"|name=="GH", "Semi-parametrc", "Non-parametric")) %>%
-  mutate(model = factor(model, levels = c("No noise",  "20 noise", "100 noise")),
+  mutate(model = factor(model, levels =  c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized")),
          name = factor(name, levels = c("HZ","GH", "Harrell.s","NP","SNP"),
                        labels = c("HZ","GH", "Harrell","NP","SNP")))
 
@@ -276,7 +287,7 @@ c_df_long %>%
   ggplot(aes(x = name, y = value))+
   geom_boxplot(aes(fill = Type))+
   facet_grid(cols=vars(model))+
-  geom_hline(yintercept = true_c, col = "red")+
+  # geom_hline(yintercept = true_c, col = "red")+
   theme(text = element_text(size = 12),
         axis.text = element_text(size=8))+
   scale_fill_manual(values=cbPalette)+
@@ -287,7 +298,7 @@ c_df_long %>%
   ggplot(aes(x = name, y = value))+
   geom_boxplot(aes(fill = Type))+
   facet_grid(cols=vars(model))+
-  geom_hline(yintercept = true_c, col = "red")+
+  # geom_hline(yintercept = true_c, col = "red")+
   theme(text = element_text(size = 12),
         axis.text = element_text(size=8))+
   scale_fill_manual(values=cbPalette)+
