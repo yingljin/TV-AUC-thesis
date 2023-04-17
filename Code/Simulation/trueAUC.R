@@ -118,4 +118,4 @@ true_c <- sum(width*height/2, na.rm = T)
 
 ## save results
 
-save(true_auc_sort, true_c, true_marg_ft, true_marg_ft, file = here("outputData/true_values.RData"))
+save(true_auc_sort, true_c, true_marg_ft, true_marg_ft, file = here("Data/true_values.RData"))
