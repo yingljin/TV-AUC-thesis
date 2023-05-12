@@ -54,7 +54,8 @@ trap_integrate_ROC <- function(eta, sens, spec){
 ##### Calcualte true AUC #####
 
 tind <- seq(0, 1, length.out = 500)
-etaind <- seq(-5, 5, length.out = 100)
+#etaind <- seq(-5, 5, length.out = 100)
+etaind <- seq(5, 15, length.out = 100)
 true_auc <- rep(NA, length(tind))
 Beta <- c(1,-1,0.25)
 
@@ -70,11 +71,11 @@ for(i in seq_along(tind)){
   for(j in seq_along(etaind)){
     eta_ij <- etaind[j]
     
-    sens[j] <- adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(eta_ij), upperLimit=c(500), lambda=2, p=2, sigma_eta=sqrt(sum(Beta^2)))$integral/
-      adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(-Inf), upperLimit=c(500), lambda=2, p=2, sigma_eta=sqrt(sum(Beta^2)))$integral
+    sens[j] <- adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(eta_ij), upperLimit=c(500), lambda=2, p=2, mn_eta=10, sigma_eta=sqrt(sum(Beta^2)))$integral/
+      adaptIntegrate(my_fn_sens, t=t_i, lowerLimit=c(-Inf), upperLimit=c(500), lambda=2, p=2, mn_eta=10, sigma_eta=sqrt(sum(Beta^2)))$integral
     
-    spec[j] <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(eta_ij, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral/
-      adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(500, 500), lambda=2, p=2, sigma_eta =  sqrt(sum(Beta^2)))$integral
+    spec[j] <- adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(eta_ij, 500), lambda=2, p=2, mn_eta=10, sigma_eta =  sqrt(sum(Beta^2)))$integral/
+      adaptIntegrate(my_fn_spec, lowerLimit=c(-Inf, t_i), upperLimit=c(500, 500), lambda=2, p=2, mn_eta=10,sigma_eta = sqrt(sum(Beta^2)))$integral
   }
   ## integrate to AUC
   true_auc[i] <- trap_integrate_ROC(etaind, sens, spec)
@@ -83,7 +84,20 @@ for(i in seq_along(tind)){
 }
 
 # brief look at true auc
-plot(tind, true_auc) 
+
+
+true_auc_df <- data.frame(t = tind, true_auc=true_auc, dist = "mu=10, sd = 1")
+true_auc_df <- bind_rows(true_auc_df, 
+                         data.frame(t = tind, 
+                                    true_auc = true_auc, 
+                                    dist = "mu = 10, sd = 0"))
+true_auc_df <- true_auc_df %>% filter(dist != "mu=10, sd = 1")
+
+plot(tind, true_auc)
+
+true_auc_df %>% ggplot()+
+  geom_point(aes(x=t, y=true_auc, col = dist))
+
 true_auc_sort <- data.frame(time_bin = tind, auc = true_auc)
 
 ##### Calculate true concordance #####

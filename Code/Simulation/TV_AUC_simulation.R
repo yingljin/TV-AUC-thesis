@@ -1,7 +1,6 @@
 
-# This script implements the simulation study that 
-# corresponding to the simulation section 
-# in the manuscript
+# This script implements the simulation study 
+# investigating the effect of overfit
 
 ##### set up #####
 rm(list = ls())
@@ -30,7 +29,7 @@ source("Code/Simulation/helpers_estimator.R")
 
 #### Simulation set up ####
 
-M <- 1000 # number of simulated data sets
+M <- 100 # number of simulated data sets
 N <- 500 # number of subjects
 #N <- 1000 # number of subjects
 Beta <- c(1,-1,0.25)
@@ -43,9 +42,11 @@ p <- 3
 
 # result container
 auc_lst_train <- list()
-auc_lst_test <- list()
+auc_lst_test_noise <- list()
+auc_lst_test_diffx <- list()
 c_lst_train <- list()
-c_lst_test <- list()
+c_lst_test_noise <- list()
+c_lst_test_diffx <- list()
 data_lst <- list()
 
 ##### simulation ####
@@ -82,12 +83,21 @@ while(iter <= M){
   
   ## for the "little overlap" case, use different test set
   ## generate additional test set from different distributrion
-  X2  <- matrix(rnorm(N_obs*3, mean = 20), ncol=p, nrow=N_obs) 
+  ## case 1: different mean
+  X2  <- matrix(rnorm(N_obs*3, mean = 10), ncol=p, nrow=N_obs) 
   data_test2 <- gen_St(eta=X2 %*% Beta, lambda=2, p=2, 
                  gen_Ct = function(N){
                    sample(c(0.5, 1), size = N, replace = T)})
   data_test2 <- rename(data_test2, true_eta=eta)
   data_test2$X <- X2
+  
+  ## case 2: different spread
+  X3  <- matrix(rnorm(N_obs*3, sd = 10), ncol=p, nrow=N_obs) 
+  data_test3 <- gen_St(eta=X3 %*% Beta, lambda=2, p=2, 
+                       gen_Ct = function(N){
+                         sample(c(0.5, 1), size = N, replace = T)})
+  data_test3 <- rename(data_test3, true_eta=eta)
+  data_test3$X <- X3
   
   # fit our 3 models with different number of noise predictors (0, 20, 100)
   # and the latter two with lasso penalization
@@ -161,10 +171,18 @@ while(iter <= M){
     # test_eta3_lasso <- as.vector(cbind(data_test$X,data_test$Z) %*% coef(fit_3_lasso))
     t_uni_test <- unique(data_test$time[data_test$event==1])
     nt_uni_test <- length(t_uni_test)
+    t_uni_test2 <- unique(data_test2$time[data_test2$event==1])
+    nt_uni_test2 <- length(t_uni_test2)
+    t_uni_test3 <- unique(data_test3$time[data_test3$event==1])
+    nt_uni_test3 <- length(t_uni_test3)
   
     ## marginal survival estimates
     KM_fit_test <- survfit(Surv(time,event)~1, timefix=FALSE,data=data_test)
     KM_est_test <- KM_fit_test$surv[KM_fit_test$n.event>0]
+    KM_fit_test2 <- survfit(Surv(time,event)~1, timefix=FALSE,data=data_test2)
+    KM_est_test2 <- KM_fit_test2$surv[KM_fit_test2$n.event>0]
+    KM_fit_test3 <- survfit(Surv(time,event)~1, timefix=FALSE,data=data_test3)
+    KM_est_test3 <- KM_fit_test3$surv[KM_fit_test3$n.event>0]
   
     ## out-of-sample AUC 
     test_auc_est1 <- tv_auc(data_test$X %*% coef(fit_1), data_test, t_uni_test, nt_uni_test)
@@ -175,7 +193,8 @@ while(iter <= M){
     test_auc_est3_lasso <- tv_auc(cbind(data_test$X,data_test$Z) %*% coef(fit_3_lasso),
                                   data_test, t_uni_test, nt_uni_test)
     ### little overlap case
-    test_auc_est4 <- tv_auc(data_test2$X %*% coef(fit_1), data_test, t_uni_test, nt_uni_test)
+    test_auc_est4 <- tv_auc(data_test2$X %*% coef(fit_1), data = data_test2, t=t_uni_test2, nt=nt_uni_test2)
+    test_auc_est5 <- tv_auc(data_test3$X %*% coef(fit_1), data_test3, t_uni_test3, nt_uni_test3)
     
     ## out-of-sample concordance estimates
     test_concord1 <- concord(data_test, KM_est_test, test_auc_est1, fit_1$coefficients, data_test$X)
@@ -187,21 +206,39 @@ while(iter <= M){
     test_concord3_lasso <- concord(data_test, KM_est_test, test_auc_est3_lasso, coef(fit_3_lasso), 
                                    cbind(data_test$X,data_test$Z))
     ## little overlap case
-    test_concord4 <- concord(data_test2, KM_est_test, test_auc_est4, fit_1$coefficients, data_test2$X)
+    test_concord4 <- concord(data_test2, KM_est_test2, test_auc_est4, fit_1$coefficients, data_test2$X)
+    test_concord5 <- concord(data_test3, KM_est_test3, test_auc_est5, fit_1$coefficients, data_test3$X)
     
-    auc_est_test <- rbind(test_auc_est1, test_auc_est2, test_auc_est2_lasso, test_auc_est3, test_auc_est3_lasso, test_auc_est4) %>%
+    # clean 
+    auc_est_test_noise <- rbind(test_auc_est1, 
+                                test_auc_est2, 
+                                test_auc_est2_lasso, 
+                                test_auc_est3, 
+                                test_auc_est3_lasso) %>%
       data.frame() %>%
-      mutate(model = rep(c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized", "Different covariate"), 
+      mutate(model = rep(c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized"), 
                        each = nt_uni_test))
-    concord_est_test <- rbind(test_concord1, test_concord2, test_concord2_lasso, test_concord3, test_concord3_lasso, test_concord4) %>%
+    concord_est_test_noise <- rbind(test_concord1, test_concord2, test_concord2_lasso, test_concord3, test_concord3_lasso) %>%
       data.frame() %>%
-      mutate(model = c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized", "Different covariate")) 
-  
+      mutate(model = c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized"))
+    
+    auc_est_test_diffx <- rbind(test_auc_est4, 
+                                test_auc_est5) %>%
+      data.frame() %>%
+      mutate(model = c(rep("Diff mean", nt_uni_test2), 
+                       rep("Diff var", nt_uni_test3)))
+    
+    concord_est_test_diffx <- rbind(test_concord4, test_concord5) %>%
+      data.frame() %>%
+      mutate(model = c("Diff mean", "Diff var"))
+    
     # save to final results
     auc_lst_train[[iter]] <- auc_est_train
-    auc_lst_test[[iter]] <- auc_est_test
+    auc_lst_test_noise[[iter]] <- auc_est_test_noise
+    auc_lst_test_diffx[[iter]] <- auc_est_test_diffx
     c_lst_train[[iter]] <- concord_est_train
-    c_lst_test[[iter]] <- concord_est_test
+    c_lst_test_noise[[iter]] <- concord_est_test_noise
+    c_lst_test_diffx[[iter]] <- concord_est_test_diffx
     
     # move to next iter
     iter <- iter + 1
@@ -216,8 +253,12 @@ while(iter <= M){
 
 #### one-iter check #####
 
+save(data_train, data_test, file = here("Data/OneIterData.RData"))
+
 
 auc_df <- bind_rows(auc_est_train, auc_est_test, .id = "sample")
+
+table(auc_df$model)
 head(auc_df)
 
 auc_df_long <- auc_df %>% 
@@ -226,14 +267,16 @@ auc_df_long <- auc_df %>%
   pivot_longer(3:5) 
 
 
-auc_df_long$model <- factor(auc_df_long$model, levels =  c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized"))
+auc_df_long$model <- factor(auc_df_long$model, levels =  c("No noise", "20 noise", "20 noise, penalized", 
+                                                           "100 noise", "100 noise, penalized",
+                                                           "Different covariate"))
 table(auc_df_long$model)
 auc_df_long$name <- factor(auc_df_long$name, levels = c("HZ", "SNP", "NP"))
 table(auc_df_long$name)
 
 
 auc_df_long %>% 
-  filter(model!="20 noise, penalized" & model!="100 noise, penalized") %>%
+  filter(model!="20 noise, penalized" & model!="100 noise, penalized" & model!="Different covariate") %>%
   ggplot(aes(x=time, y=value, col=model, linetype = sample))+
   geom_line()+
   # geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
@@ -245,44 +288,62 @@ auc_df_long %>%
   scale_colour_manual(values=cbPalette)
 
 
+auc_df_long2 %>% 
+  filter(iter == 1) %>% 
+  ggplot(aes(x=time, y=value, col=model))+
+  geom_point()+
+  # geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
+  #             method = "gam")+
+  # geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
+  # labs(x="time", y = "AUC")+
+  # theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
+  facet_wrap(~name)+
+  scale_colour_manual(values=cbPalette)
 
+
+table(auc_lst_test_diffx[[1]]$model)
 ##### Cleaning and formatting results #####
 
 ## AUC
 auc_df_train <- bind_rows(auc_lst_train, .id = "iter")
-auc_df_test <- bind_rows(auc_lst_test, .id = "iter")
-auc_df <- bind_rows(auc_df_train, auc_df_test, .id = "sample")
+auc_df_test_noise <- bind_rows(auc_lst_test_noise, .id = "iter")
+auc_df_test_diffx <- bind_rows(auc_lst_test_diffx, .id="iter")
+
+auc_df_noise <- bind_rows(auc_df_train, auc_df_test_noise, .id = "sample")
+auc_df_diffx <- bind_rows(auc_df_train, auc_df_test_diffx, .id = "sample")
 
 
 ## concordance
 c_df_train <- bind_rows(c_lst_train, .id = "iter")
-c_df_test <- bind_rows(c_lst_test, .id = "iter")
-c_df <- bind_rows(c_df_train, c_df_test, .id = "sample")
+c_df_test_noise <- bind_rows(c_lst_test_noise, .id = "iter")
+c_df_test_diffx <- bind_rows(c_lst_test_diffx, .id = "iter")
+
+c_df_noise <- bind_rows(c_df_train, c_df_noise, .id = "sample")
+c_df_test_diffx <- bind_rows(c_df_train, c_df_test_diffx, .id = "sample")
+
 
 #### true AUC and concordance #####
 load(here("Data/true_values.RData"))
 
 # use interpolation to estimate AUC on simulated time series
 true_auc_sort <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
-                       xout = auc_df$time)$y
+                       xout = auc_df_noise$time)$y
 
 
 
 #### Produce figures #####
 
 # trend of TV-AUC estimates (smoothed)
-auc_df_long <- auc_df %>% 
+auc_df_long <- auc_df_noise %>% 
   mutate(true = true_auc_sort,
          sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
   pivot_longer(4:6) 
 
 auc_df_long$model <- factor(auc_df_long$model, levels =  c("No noise", "20 noise", "20 noise, penalized", 
-                                                           "100 noise", "100 noise, penalized", "Different covariate"))
+                                                           "100 noise", "100 noise, penalized"))
 table(auc_df_long$model)
-auc_df_long$name <- factor(auc_df_long$name, levels = c("HZ", "SNP", "NP"))
-table(auc_df_long$name)
-
-
+# auc_df_long$name <- factor(auc_df_long$name, levels = c("HZ", "SNP", "NP"))
+# table(auc_df_long$name)
 
 auc_df_long %>% 
   filter(model!="20 noise, penalized" & model!="100 noise, penalized") %>%
@@ -294,8 +355,27 @@ auc_df_long %>%
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
   facet_wrap(~name)+
   scale_colour_manual(values=cbPalette)
-
 ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg = "white")
+
+# different covariate space
+auc_df_long2 <- auc_df_diffx %>% 
+  mutate(sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
+  pivot_longer(4:6) %>%
+  filter(model %in% c("No noise", "Diff mean", "Diff var"))
+
+table(auc_df_long2$name)
+
+auc_df_long2 %>%
+  mutate(model = factor(model, levels = c("No noise", "Diff mean", "Diff var"))) %>% 
+  ggplot(aes(x=time, y=value, col=model, linetype = sample))+
+  geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
+              method = "gam")+
+  #geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
+  labs(x="time", y = "AUC")+
+  theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
+  facet_wrap(~name)+
+  scale_colour_manual(values=cbPalette)
+ggsave(filename = "tvauc_N250_diffx.png", path = "Images/N250", width=15, height=4, bg = "white")
 #ggsave(filename = "tvauc_N500.png", path = "Images/N500", width=15, height=4, bg = "white")
 
 # spread of TV-AUC estimates
@@ -332,14 +412,17 @@ ggsave(filename = "tvauc_box_N250.png", path = "Images/N250", width=15, height =
 #ggsave(filename = "tvauc_box_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
 # concordance
-c_df <- bind_rows(c_df_train, c_df_test, .id = "sample")
-c_df_long <- c_df %>%
+## ovefit
+c_df_noise <- bind_rows(c_df_train, c_df_test_noise, .id = "sample")
+c_df_long <- c_df_noise %>%
   mutate(sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
   pivot_longer(3:7) %>%
   mutate(Type = ifelse(name=="HZ"|name=="GH", "Semi-parametrc", "Non-parametric")) %>%
-  mutate(model = factor(model, levels =  c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized", "Different covariate")),
+  mutate(model = factor(model, levels =  c("No noise", "20 noise", "20 noise, penalized", "100 noise", "100 noise, penalized")),
          name = factor(name, levels = c("HZ","GH", "Harrell.s","NP","SNP"),
                        labels = c("HZ","GH", "Harrell","NP","SNP")))
+
+table(c_df_long$model)
 
 ggarrange(
 c_df_long %>% 
@@ -368,9 +451,33 @@ c_df_long %>%
 ggsave(filename = "concordance_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
 #ggsave(filename = "concordance_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
+## covariate space
+c_df_diffx <- bind_rows(c_df_train, c_df_test_diffx, .id = "sample")
+c_df_long2 <- c_df_diffx %>%
+  filter(model %in% c("No noise", "Diff mean", "Diff var")) %>%
+  mutate(sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
+  pivot_longer(2:6) %>%
+  mutate(Type = ifelse(name=="HZ"|name=="GH", "Semi-parametrc", "Non-parametric")) %>%
+  mutate(model = factor(model, levels =  c("No noise", "Diff mean", "Diff var")),
+         name = factor(name, levels = c("HZ","GH", "Harrell.s","NP","SNP"),
+                       labels = c("HZ","GH", "Harrell","NP","SNP")))
+
+c_df_long2 %>% 
+  filter(sample == "Out-of-sample") %>%
+  #filter(model!="20 noise, penalized" & model!="100 noise, penalized") %>%
+  ggplot(aes(x = name, y = value))+
+  geom_boxplot(aes(fill = Type))+
+  facet_grid(cols=vars(model))+
+  #geom_hline(yintercept = true_c, col = "red")+
+  theme(text = element_text(size = 12),
+        axis.text = element_text(size=8))+
+  scale_fill_manual(values=cbPalette)+
+  labs(y = "Concordance", x = "Estimator", title = "Out-of-sample", nrow = 1, common.legend = T)
+ggsave(filename = "concordance_N250_diffx.png", path = "Images/N250", width=7, height = 4, bg = "white")
 
 
 # save(auc_df_train, auc_df_test, c_df_train, c_df_test, file = here("outputData/estimated_values.RData"))
 save(auc_lst_train, auc_lst_test, c_lst_train, c_lst_test, file = here("Data/results_by_iter.RData"))
+# load(here("Data/results_by_iter.RData"))
 
 

@@ -101,7 +101,7 @@ tv_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
   # smoothed empirical AUC
   sm_fit <- gam(NP ~ s(time, k = 30, bs = "cr"), method = "REML", 
                 data = as.data.frame(auc_mat))
-  auc_mat[, "SNP"] <- predict(sm_fit)
+  auc_mat[, "SNP"] <- predict(sm_fit, newdata = data.frame(time = auc_mat[, "time"]))
   
   return(auc_mat)
 }
