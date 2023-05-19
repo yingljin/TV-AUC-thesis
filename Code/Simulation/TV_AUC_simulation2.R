@@ -44,14 +44,15 @@ p <- 3
 # result container
 auc_lst <- list()
 c_lst <- list()
+data_lst <- list()
 ##### simulation ####
 
 # set up: 
 # training data: three true covariates
 # testing data: introduce outliers
-# case 1: 10% outliers, 10 times larger risk score
-# case 2: 10% outliers, 100 times larger risk score
-# case 3: 20% outliers, 10 times larger risk score
+# case 1: 10% outliers, covariate from N(10, 0)
+# case 2: 10% outliers, covariate from N(0, 10)
+
 
 
 iter <- 1
@@ -68,6 +69,7 @@ while(iter <= M){
                    sample(c(0.5, 1), size = N, replace = T)})
   data <- rename(data, true_eta = eta)
   data$X <- I(X)
+  data_lst[[iter]] <- data
   
   # test data 0: no outlier
   data_train <- data[1:N_obs,]
@@ -76,21 +78,21 @@ while(iter <= M){
   # test data 1: 10% outlier, 10 times larger risk score
   out_id1 <- sample(1:N_obs, size = 0.1*N_obs)
   data_test1 <- data_test
-  data_test1$X[out_id1, ] <- 10*data_test1$X[out_id1, ] # adjust covariate value
+  data_test1$X[out_id1, ] <- rnorm(0.1*N_obs*3, mean=5, sd=1) # adjust covariate value
   data_test1$true_eta[out_id1] <- data_test1$X[out_id1, ] %*% Beta # risk score
-  #boxplot(data_test1$true_eta)
+  # boxplot(data_test1$true_eta)
   
   # test data 2: 10% outlier, 100 times larger risk score
   data_test2 <- data_test
-  data_test2$X[out_id1, ] <- 100*data_test2$X[out_id1, ] # adjust covariate value
+  data_test2$X[out_id1, ] <- rnorm(0.1*N_obs*3, mean=0, sd=5) # adjust covariate value
   data_test2$true_eta[out_id1] <- data_test2$X[out_id1, ] %*% Beta # risk score
-  #boxplot(data_test2$true_eta)
+  # boxplot(data_test2$true_eta)
   
   # test data 3: 20% outlier, 10 times larger risk score
-  out_id2 <- sample(1:N_obs, size = 0.2*N_obs)
-  data_test3 <- data_test
-  data_test3$X[out_id2, ] <- 10*data_test3$X[out_id2, ] # adjust covariate value
-  data_test3$true_eta[out_id2] <- data_test3$X[out_id2, ] %*% Beta # risk score
+  # out_id2 <- sample(1:N_obs, size = 0.2*N_obs)
+  # data_test3 <- data_test
+  # data_test3$X[out_id2, ] <- 10*data_test3$X[out_id2, ] # adjust covariate value
+  # data_test3$true_eta[out_id2] <- data_test3$X[out_id2, ] %*% Beta # risk score
   #boxplot(data_test3$true_eta)
   
   # fit our cox model on training data
@@ -141,10 +143,10 @@ while(iter <= M){
                      fit_cox$coefficients, data_test2$X)
   
   # case 3
-  auc_est_test3 <- tv_auc(data_test3$X %*% coef(fit_cox), data_test3, 
-                          ut_test, nt_test)
-  c_test3 <- concord(data_test3, KM_est_test, auc_est_test3, 
-                     fit_cox$coefficients, data_test3$X)
+  # auc_est_test3 <- tv_auc(data_test3$X %*% coef(fit_cox), data_test3, 
+  #                         ut_test, nt_test)
+  # c_test3 <- concord(data_test3, KM_est_test, auc_est_test3, 
+  #                    fit_cox$coefficients, data_test3$X)
   
   # clean results
   tv_auc_df <- bind_rows(
@@ -152,11 +154,11 @@ while(iter <= M){
     auc_est_test %>% data.frame() %>% mutate(sample = "Out-of-sample", 
                                             outlier = "None"),
     auc_est_test1 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-                                             outlier = "10%, sd = 10"),
+                                             outlier = "N(5, 1)"),
     auc_est_test2 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-                                             outlier = "10%, sd = 100"),
-    auc_est_test3 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-                                             outlier = "20%, sd = 10")
+                                             outlier = "N(0, 5)"),
+    # auc_est_test3 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
+    #                                          outlier = "20%, sd = 10")
   )
   
   c_df <- bind_rows(
@@ -164,11 +166,11 @@ while(iter <= M){
     c_test %>%  data.frame() %>% mutate(sample = "Out-of-sample",
                                         outlier = "None"),
     c_test1 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-                                              outlier = "10%, sd = 10"),
+                                              outlier = "N(5, 1)"),
     c_test2 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-                                              outlier = "10%, sd = 100"),
-    c_test3 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-                                              outlier = "20%, sd = 10")
+                                              outlier = "N(0, 5)"),
+    # c_test3 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
+    #                                           outlier = "20%, sd = 10")
   )
     
     # save to final results
