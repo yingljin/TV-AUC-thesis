@@ -50,8 +50,8 @@ data_lst <- list()
 # set up: 
 # training data: three true covariates
 # testing data: introduce outliers
-# case 1: 10% outliers, covariate from N(10, 0)
-# case 2: 10% outliers, covariate from N(0, 10)
+# case 1: 10% outliers, covariate from N(5, 0)
+# case 2: 10% outliers, covariate from N(0, 5)
 
 
 
@@ -184,7 +184,7 @@ while(iter <= M){
 
 ##### One iteration #####
 
-save(data_test, data_test3, data_test2, data_test1, 
+save(data_train, data_test, data_test1, data_test2,
      file = here("Data/OneIterContamData.RData"))
 
 #### Results ####
