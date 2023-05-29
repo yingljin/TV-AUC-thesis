@@ -271,6 +271,9 @@ bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) 
 ggsave(filename = "tvauc_gam.png", path = "Images/data_appl", 
        width=15, height=4, bg="white")
 
+
+save(df_c_gam, df_c_lin, tvauc_in_df_gam, tvauc_in_df_lin, tvauc_out_df_gam, tvauc_out_df_lin,
+     file = here("Data/ApplResult.RData"))
 # out-of-sample SNP of ACM seems wired (too high)
 
 ## only one fold
