@@ -1,5 +1,6 @@
 rm(list=ls())
 library("survival");library("risksetROC"); library("glmnet")
+library(ggplot)
 theme_set(theme_minimal())
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
@@ -242,8 +243,8 @@ data_plt %>%
   scale_color_manual(values = cbPalette)+
   theme(text=element_text(size=15),
         axis.text = element_text(size=10))
-ggsave(filename="outlier_exp.png", path="Images/", 
-       width=7, height=4, bg="white")
+ggsave(filename="Images/outlier_exp.eps",
+       width=7, height=4, bg="white", dpi = 300)
 
 # weight
 exp(marker_fake[300])/sum(exp(marker_fake[time_fake>=ti]))
