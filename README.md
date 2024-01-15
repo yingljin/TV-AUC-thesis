@@ -10,3 +10,9 @@ This repository saves the code scripts needed for reproducing the simulation and
   
     Includes functions specifically for data application section, code for data pre-processing and calculate in- and out-of sample estimands by K-fold corss validation. 
 
+
+# 24/1/11
+
+1. The SNP estimates in data application, look at results by CV iterations
+
+
