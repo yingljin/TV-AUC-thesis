@@ -1,7 +1,5 @@
 
 # This script includes functions that are used specifically for data application
-# The functions are different from simulation
-# mostly because gam model is used instead of Cox PH
 
 ##### GH for gam model ##### 
 
@@ -151,3 +149,7 @@ intAUC_appl <- function(AUC, utimes, St, method="HZ"){
   
   return(iAUC)
 }
+
+
+# The functions are different from simulation
+# mostly because gam model is used instead of Cox PH

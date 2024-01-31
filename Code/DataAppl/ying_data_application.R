@@ -119,14 +119,14 @@ for(k in 1:nfolds){
           eta_test_gam <- predict(fit_k_gam, newdata = df_test_k, type = "link")
           tvauc_out_gam[[k]] <- test_auc(eta_test_gam, 
                                      data = df_test_k %>% 
-                                       select(event_time_years, mortstat) %>% 
+                                       dplyr::select(event_time_years, mortstat) %>% 
                                        rename("time" = event_time_years,
                                               "event" = mortstat),
                                      t = t_uni_test, nt = nt_uni_test)
           eta_test_lin <- predict(fit_k_lin, newdata = df_test_k, type = "lp")
           tvauc_out_lin[[k]] <- test_auc(eta_test_lin, 
                                          data = df_test_k %>% 
-                                           select(event_time_years, mortstat) %>% 
+                                           dplyr::select(event_time_years, mortstat) %>% 
                                            rename("time" = event_time_years,
                                                   "event" = mortstat),
                                          t = t_uni_test, nt = nt_uni_test)
@@ -197,14 +197,14 @@ for(k in 1:nfolds){
         c_gam["SNP", "In-sample", k] <- intAUC(auc_sort_in_gam$SNP,
                                               auc_sort_in_gam$time, 
                                               KM_est_train, method = "smS")
-        c_gam["SNP", "Out-of-sample", k] <- intAUC_appl(auc_sort_in_gam$SNP,
+        c_gam["SNP", "Out-of-sample", k] <- intAUC_appl(auc_sort_out_gam$SNP,
                                                         auc_sort_out_gam$time, 
                                                         KM_est_test, 
                                                         method = "smS")
         c_lin["SNP", "In-sample", k] <- intAUC(auc_sort_in_lin$SNP,
                                                auc_sort_in_lin$time, 
                                                KM_est_train, method = "smS")
-        c_lin["SNP", "Out-of-sample", k] <- intAUC_appl(auc_sort_in_lin$SNP,
+        c_lin["SNP", "Out-of-sample", k] <- intAUC_appl(auc_sort_out_lin$SNP,
                                                         auc_sort_out_lin$time, 
                                                         KM_est_test, 
                                                         method = "smS")
