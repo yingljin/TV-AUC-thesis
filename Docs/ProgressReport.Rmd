@@ -1,0 +1,596 @@
+---
+title: "Progress Report"
+author: "Ying Jin"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    self_contained: no
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+    keep_tex: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+rm(list = ls())
+library("survival")
+library("ggplot2")
+library(ggpubr)
+library("cubature")
+library(tidyverse)
+library(dplyr)
+library(here)
+library(risksetROC)
+library(mgcv)
+library(scam)
+library("clinfun")
+library(glmnet)
+library(kableExtra)
+theme_set(theme_minimal())
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+# set the seed
+set.seed(512)
+```
+
+
+# Simulation
+
+## Data contamination
+
+- Data contamination is introduced by adding outliers to test datasets (not noise in the model)
+- Within each simulation, we investiage two scenarios: 
+1. 10% contaminated subjects, N(5, 1)
+2. 10% contaminated subjects, N(0, 5)
+
+```{r}
+load(here("Data/SimContamData.RData"))
+tv_auc_df <- bind_rows(auc_lst) 
+c_df <- bind_rows(c_lst)
+```
+
+
+```{r true_vals}
+load(here("Data/true_values.RData"))
+
+# use interpolation to estimate AUC on simulated time series
+true_auc_df <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
+                       xout = unique(tv_auc_df$time))
+true_auc_df <- data.frame(true_auc_df) %>% 
+  rename("time" = x, "true_auc" = y)
+```
+
+### Incident/Dynamic AUC
+
+```{r fig_tv_auc_contam, warning=FALSE, fig.height=3, fig.width=9}
+tv_auc_df %>% 
+  left_join(true_auc_df, by = "time") %>%
+  mutate(outlier = ifelse(is.na(outlier), "None", outlier)) %>%
+  pivot_longer(2:4, names_to = "Estimator", values_to = "AUC") %>%
+  mutate(Estimator = factor(Estimator, levels = c("HZ", "NP", "SNP"),
+                            labels = c("Semi-parametric", 
+                                       "Non-parametric",
+                                       "Smoothed non-parametric"))) %>%
+  ggplot()+
+  geom_smooth(aes(x=time, y=AUC, col=outlier, linetype=sample), 
+              formula = y~s(x, k=30, bs = "cs"), method = "gam", se=F, na.rm = T)+
+  geom_line(aes(x=time, y=true_auc), col = "black", size = 0.5)+
+  facet_wrap(~Estimator, nrow = 1)+
+  scale_color_manual(values = cbPalette)+
+  labs(col = "Outlier", linetype = "Sample", x = "Time")+
+  theme(axis.text.x = element_text(vjust = 0.9))
+```
+
+### Spread of Incident/Dynamic AUC
+
+```{r fig_tvauc_box_contam, fig.width=12, fig.height=3}
+tv_auc_df %>%
+  mutate(time_bin = cut(time, breaks = seq(0, 1, 0.2), include.lowest = T)) %>%
+  mutate(outlier = ifelse(is.na(outlier), "", outlier)) %>%
+  mutate(outlier = relevel(as.factor(outlier), ref = "None")) %>%
+  pivot_longer(c("HZ", "NP", "SNP"), names_to = "Estimator", values_to = "AUC") %>%
+  mutate(Estimator = factor(Estimator, levels = c("HZ", "NP", "SNP"),
+                             labels = c("Semi-parametric", 
+                                       "Non-parametric",
+                                       "Smoothed non-parametric"))) %>%
+  ggplot()+
+  geom_boxplot(aes(x=time_bin, y=AUC, col=Estimator, fill = Estimator),
+               outlier.size = 0.2, show.legend = F)+
+  facet_wrap(~sample+outlier, nrow = 1)+
+  theme(axis.text.x = element_text(vjust = 0.9, angle = 45),
+        text = element_text(size = 12.5))+
+  scale_fill_manual(values = cbPalette)+
+  scale_color_manual(values = cbPalette)+
+  labs(x="Time", y="AUC")
+```
+
+### Concordance
+
+```{r fig_c_contam, fig.width=15, fig.height=5}
+c_df %>% 
+  pivot_longer(1:5, names_to = "estimator", values_to = "Concordance") %>%
+  mutate(sample = factor(sample, levels =c("In-sample", "Out-of-sample"))) %>%
+  mutate(outlier = ifelse(is.na(outlier), "In-sample", outlier)) %>%
+  mutate(outlier = factor(outlier, 
+                          levels = c("In-sample", "None", "N(0, 5)", "N(5, 1)")),
+         estimator = factor(estimator, 
+                            levels = c("HZ", "GH", "Harrell.s", "NP", "SNP"), 
+                            labels = c("HZ", "GH", "Harrell", "NP", "SNP"), )) %>%
+  mutate(type = ifelse(estimator=="HZ"|estimator=="GH", "Semi-parametric", "Non-parametric")) %>%
+  mutate(type = factor(type, levels = c("Semi-parametric", "Non-parametric"))) %>%
+  rename(Sample = sample) %>%
+  ggplot()+
+  geom_boxplot(aes(x=outlier, y=Concordance, fill=Sample, col=Sample), na.rm = T)+
+  geom_hline(yintercept = true_c, col = "black")+
+  facet_wrap(~type+estimator, nrow = 1)+
+  labs(x="", y="Concordance")+
+  theme(axis.text.x = element_text(angle=45, vjust = 0.9, size = 12.5),
+        text = element_text(size = 12.5))+
+  scale_color_manual(values = cbPalette)+
+  scale_fill_manual(values = cbPalette)
+```
+
+## Model overfit
+
+```{r}
+load(here("Data/SimNoiseModel.RData"))
+
+tv_auc_df <- bind_rows(auc_lst, .id = "iter") 
+c_df <- bind_rows(c_lst, .id="iter") 
+
+# re-interpolate true AUC
+true_auc_df <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
+                       xout = unique(tv_auc_df$time))
+true_auc_df <- data.frame(true_auc_df) %>% 
+  rename("time" = x, "true_auc" = y)
+```
+
+### Incident/Dynamic AUC
+
+```{r fig_tv_auc_noise, warning=FALSE, fig.height=3, fig.width=9}
+tv_auc_df %>% 
+  filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
+  mutate(model = factor(model, 
+                        levels = c("No noise", "20 noise", "100 noise"))) %>%
+  left_join(true_auc_df, by = "time") %>%
+  pivot_longer(3:5, names_to = "estimator", values_to = "AUC") %>%
+  mutate(estimator = factor(estimator, levels = c("HZ", "NP", "SNP"),
+                             labels = c("Semi-parametric", 
+                                       "Non-parametric",
+                                       "Smoothed non-parametric"))) %>%
+  ggplot()+
+  geom_smooth(aes(x=time, y=AUC, col=model, linetype=sample), 
+              formula = y~s(x, k=30, bs = "cs"), method = "gam", se=F, na.rm = T)+
+  geom_line(aes(x=time, y=true_auc), col = "black", size = 0.5)+
+  scale_color_manual(values = cbPalette)+
+  labs(col = "Outlier", linetype = "Sample", x = "Time")+
+  facet_wrap(~estimator, nrow = 1)+
+  theme(axis.text.x = element_text(vjust = 0.9))
+```
+
+### Spread of Incident/Dynamic AUC
+
+```{r fig_tvauc_box_ovefit, fig.width=9, fig.height=6}
+tv_auc_df %>% 
+  filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
+  mutate(model = factor(model, 
+                        levels = c("No noise", "20 noise", "100 noise"))) %>%
+  pivot_longer(c("HZ", "NP", "SNP"), names_to = "Estimator", values_to = "AUC") %>%
+  mutate(Estimator = factor(Estimator, levels = c("HZ", "NP", "SNP"),
+                             labels = c("Semi-parametric", 
+                                       "Non-parametric",
+                                       "Smoothed non-parametric"))) %>%
+  mutate(time_bin = cut(time, breaks = seq(0, 1, 0.2), include.lowest = T)) %>%
+  ggplot(aes(x = factor(time_bin), y = AUC, fill = Estimator, col=Estimator))+
+  geom_boxplot(outlier.size = 0.5)+
+  facet_grid(rows = vars(sample), cols = vars(model))+
+  labs(x = "Time", y= "AUC")+
+  theme(axis.text.x = element_text(vjust = 0.9, angle = 45),
+        text = element_text(size = 12.5), 
+        legend.position = "top")+
+  scale_fill_manual(values = cbPalette)+
+  scale_color_manual(values = cbPalette)
+```
+
+### Concordance
+
+```{r fig_c_noise, fig.width=15, fig.height=5}
+c_df %>% 
+  filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
+  pivot_longer(2:6, names_to = "estimator", values_to = "Concordance") %>%
+  mutate(sample = factor(sample, levels =c("In-sample", "Out-of-sample"))) %>%
+  mutate(model = factor(model, 
+                        levels = c("No noise", "20 noise", "100 noise")),
+          estimator = factor(estimator, 
+                            levels = c("HZ", "GH", "Harrell.s", "NP", "SNP"), 
+                            labels = c("HZ", "GH", "Harrell", "NP", "SNP"), )) %>%
+   mutate(type = ifelse(estimator=="HZ"|estimator=="GH", "Semi-parametric", "Non-parametric")) %>%
+  mutate(type = factor(type, levels = c("Semi-parametric", "Non-parametric"))) %>%
+  rename(Sample = sample) %>%
+  ggplot()+
+  geom_boxplot(aes(x=model, y=Concordance, fill=Sample, col=Sample), na.rm = T)+
+  geom_hline(yintercept = true_c, col = "black")+
+  facet_wrap(~type+estimator, nrow = 1)+
+  labs(x = "Model")+
+  theme(axis.text.x = element_text(angle=45, size = 12.5),
+        text = element_text(size = 12.5))+
+  scale_color_manual(values = cbPalette)+
+  scale_fill_manual(values = cbPalette)
+```
+
+
+
+# Case Study
+
+```{r}
+load(here("Data/ApplResult.RData"))
+```
+
+
+```{r}
+appl_auc <- bind_rows(tvauc_in_df_gam %>% mutate(sample = "In-sample"),
+          tvauc_out_df_gam %>% mutate(sample = "Out-of-sample"), 
+          tvauc_in_df_lin %>% mutate(sample = "In-sample"), 
+          tvauc_out_df_lin %>% mutate(sample = "Out-of-sample")) %>%
+  mutate(model = factor(model, levels = c("GAM", "Lin"),
+                        labels = c("ACM","LCM"))) %>%
+  pivot_longer(c("HZ", "NP", "SNP"), names_to = "Estimator", values_to = "AUC") %>%
+  mutate(Estimator=factor(Estimator, levels = c("HZ", "NP", "SNP"),
+                          labels = c("Semi-parametric",
+                                     "Non-parametric",
+                                     "Smoothed non-parametric")))
+```
+
+
+```{r appl_auc, fig.width=10, fig.height=3}
+appl_auc %>% 
+  ggplot(aes(x = time, y = AUC, col = model, linetype = sample))+
+  geom_smooth(se = F, formula = y~s(x,  k=30, bs = "cs"),
+              na.rm = T, method = "gam")+
+  labs(x = "Time", y = "AUC",
+       linetype = "Sample", color = "Model")+
+  facet_grid(~Estimator)+
+  scale_color_manual(values = cbPalette)
+```
+
+
+
+
+
+```{r}
+appl_c <- bind_rows(df_c_gam, df_c_lin) %>% 
+  mutate(type = ifelse(estimator %in% c("Harrell", "NP","SNP"), 
+                       "Non-parametric", "Semi-parametric")) %>% 
+  mutate(model = factor(model, levels=c("Lin", "GAM"), 
+                        labels = c("LCM", "ACM"))) %>%
+  mutate(type = factor(type, levels = c("Semi-parametric", "Non-parametric"))) %>%
+  rename(Sample=estimand) 
+```
+
+
+```{r appl_c, fig.width=10, fig.height=3}
+appl_c%>%
+  ggplot() + 
+  geom_boxplot(aes(x=model,y=Freq, fill=Sample, col= Sample)) + 
+  facet_wrap(~type+estimator, nrow = 1)+
+  labs(x = "Model", y = "Concordance")+
+  scale_fill_manual(values = cbPalette)+
+  scale_color_manual(values = cbPalette)
+```
+
+# Summary table 
+
+
+```{r}
+sum_tv_auc <- tibble(
+  "Estimator" = c("Semi-parametric", "Non-parametric", "Smoothed non-parametric"),
+  "Bias" = c("Unbiased", "Unbiased", "Slightly biased"),
+  "Variavility" = c("Low", "High", "Low"),
+  "Out-of-sample behavior" = c("Over-optimistic", "Appropriate", "Appropriate")
+)
+
+sum_c <- tibble(
+  "Estimator" = c("Heagerty-Zheng", "Gonen-Heller", "Non-parametric", "Smoothed non-parametric", "Harrell"),
+  "Bias" = c("Unbiased", "Unbiased", "Unbiased", "Unbiased", "Biased upwards"),
+  "Variavility" = c("Low", "Low", "High", "Low", "Low"),
+  "Out-of-sample behavior" = c("Over-optimistic", "Over-optimistic", "Appropriate", "Appropriate", "Appropriate")
+)
+
+bind_rows(sum_tv_auc, sum_c) %>% 
+  kable(booktabs=T) %>%
+  kable_styling(full_width = F) %>%
+  group_rows(index = c("Time-dependent AUC" = 3, "Concordance (semi-parametric)" = 2,
+                       "Concordance (non-parametric)" = 3))
+```
+
+
+# Appendix 
+
+- Use one simulated dataset to investigate the weight estimates used in the Heagerty-Zheng estimator of Incident/Dynamic AUC
+
+## Model overfit
+
+```{r}
+load(here("Data/OneIterData.RData"))
+
+# fit cox models on training data
+fit_1 <- tryCatch(expr = coxph(Surv(time, event) ~ X, data=data_train), 
+                    warning = function(x){NULL})
+  
+fit_2 <- tryCatch(expr = coxph(Surv(time, event) ~ X + Z[,1:20], data=data_train), 
+                    warning = function(x){NULL})
+    
+fit_3 <- tryCatch(expr = coxph(Surv(time, event) ~ X + Z, data=data_train),
+                    warning = function(x){NULL})
+
+```
+
+
+```{r trainig_weights}
+ut1 <- data_train$time[data_train$event==1]
+nt1 <- length(ut1)
+N1 <- nrow(data_train)
+
+# biomarkers
+eta1_fit1 <- data_train$X %*% coef(fit_1)
+eta1_fit2 <- cbind(data_train$X, data_train$Z[, 1:20]) %*% coef(fit_2)
+eta1_fit3 <- cbind(data_train$X, data_train$Z) %*% coef(fit_3)
+
+wt1 <- array(NA, c(N1, nt1, 3)) 
+# weight container, subject by unique event time
+
+for(i in seq_along(ut1)){
+  ti <- ut1[i]
+  
+  id <- which(data_train$time>=ti)
+  
+  # weights
+  wt1_fit1 <- exp(eta1_fit1[id])/sum(exp(eta1_fit1[id]))
+  wt1_fit2 <- exp(eta1_fit2[id])/sum(exp(eta1_fit2[id]))
+  wt1_fit3 <- exp(eta1_fit3[id])/sum(exp(eta1_fit3[id]))
+  
+  # put weights in container
+  wt1[id, i, 1] <- wt1_fit1
+  wt1[id, i, 2] <- wt1_fit2
+  wt1[id, i, 3] <- wt1_fit3
+  
+}
+
+```
+
+
+```{r}
+# bin time
+df_wt_train <- bind_rows(
+  
+  wt1[,,1] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut1, N1),
+          model = "no noise"), 
+  
+  wt1[,,2] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut1, N1),
+          model = "20 noise"),
+  
+  wt1[,,3] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut1, N1), 
+           model = "100 noise") 
+)
+
+
+df_wt_train$tbin <- cut(df_wt_train$time, breaks = seq(0, 1, by = 0.1))
+
+```
+
+
+
+
+```{r test_weights}
+ut2 <- data_test$time[data_test$event==1]
+nt2 <- length(ut2)
+N2 <- nrow(data_test)
+
+# biomarkers
+eta2_fit1 <- data_test$X %*% coef(fit_1)
+eta2_fit2 <- cbind(data_test$X, data_test$Z[, 1:20]) %*% coef(fit_2)
+eta2_fit3 <- cbind(data_test$X, data_test$Z) %*% coef(fit_3)
+
+wt2 <- array(NA, c(N2, nt2, 3)) 
+# weight container, subject by unique event time
+
+for(i in seq_along(ut2)){
+  ti <- ut2[i]
+  
+  id <- which(data_test$time>=ti)
+  
+  # weights
+  wt2_fit1 <- exp(eta2_fit1[id])/sum(exp(eta2_fit1[id]))
+  wt2_fit2 <- exp(eta2_fit2[id])/sum(exp(eta2_fit2[id]))
+  wt2_fit3 <- exp(eta2_fit3[id])/sum(exp(eta2_fit3[id]))
+  
+  # put weights in container
+  wt2[id, i, 1] <- wt2_fit1
+  wt2[id, i, 2] <- wt2_fit2
+  wt2[id, i, 3] <- wt2_fit3
+  
+}
+
+```
+
+
+```{r}
+# bin time
+df_wt_test <- bind_rows(
+  
+  wt2[,,1] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut2, N2),
+          model = "no noise"), 
+  
+  wt2[,,2] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut2, N2),
+          model = "20 noise"),
+  
+  wt2[,,3] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut2, N2), 
+           model = "100 noise") 
+)
+
+
+
+df_wt_test$tbin <- cut(df_wt_test$time, breaks = seq(0, 1, by = 0.1))
+
+```
+
+
+```{r}
+sens_wt_overfit <- bind_rows(
+  df_wt_train %>% mutate(sample = "In-sample"),
+  df_wt_test %>% mutate(sample = "Out-of-sample")
+) %>%
+  mutate(model=factor(model, levels = c("no noise", "20 noise", "100 noise"), 
+                      labels = c("No noise", "20 noise", "100 noise"))) 
+
+# sens_wt_overfit %>% 
+#   group_by(sample, model) %>%
+#   slice_max(weight, n=5)
+```
+
+
+
+```{r boxp_wt_noise}
+sens_wt_overfit %>%
+  ggplot()+
+  geom_boxplot(aes(x=tbin, y=weight, group = tbin), outlier.size = 0.5, na.rm = T)+
+  facet_grid(rows = vars(model), cols = vars(sample), scales = "free_x")+
+  labs(x="Time interval", y = "Weight estimates")+
+  theme(axis.text.x = element_text(size = 5))
+```
+
+
+## Data contamination
+
+```{r}
+load(here("Data/OneIterContamData.RData"))
+
+# fit cox models on training data
+fit_1 <- tryCatch(expr = coxph(Surv(time, event) ~ X, data=data_train), 
+                    warning = function(x){NULL})
+```
+
+
+```{r weights}
+ut1 <- data_train$time[data_train$event==1]
+nt1 <- length(ut1)
+N1 <- nrow(data_train)
+
+# biomarkers
+eta_fit_train <- data_train$X %*% coef(fit_1)
+eta_fit_test0 <- data_test$X %*% coef(fit_1)
+eta_fit_test1 <- data_test1$X %*% coef(fit_1)
+eta_fit_test2 <- data_test2$X %*% coef(fit_1)
+
+# in-sample weights
+wt1 <- array(NA, c(N1, nt1, 1)) 
+# weight container, subject by unique event time
+
+for(i in seq_along(ut1)){
+  ti <- ut1[i]
+  
+  id <- which(data_train$time>=ti)
+  
+  # weights
+  wt1_fit1 <- exp(eta_fit_train[id])/sum(exp(eta_fit_train[id]))
+  
+  # put weights in container
+  wt1[id, i, 1] <- wt1_fit1
+
+}
+
+# out-of-sample weights
+ut2 <- data_test$time[data_test$event==1]
+nt2 <- length(ut2)
+N2 <- nrow(data_test)
+
+wt2 <- array(NA, c(N2, nt2, 3)) 
+# weight container, subject by unique event time
+
+for(i in seq_along(ut2)){
+  ti <- ut2[i]
+  
+  id <- which(data_test$time>=ti)
+  
+  # weights
+  wt2_fit1 <- exp(eta_fit_test0[id])/sum(exp(eta_fit_test0[id]))
+  wt2_fit2 <- exp(eta_fit_test1[id])/sum(exp(eta_fit_test1[id]))
+  wt2_fit3 <- exp(eta_fit_test2[id])/sum(exp(eta_fit_test2[id]))
+  
+  # put weights in container
+  wt2[id, i, 1] <- wt2_fit1
+  wt2[id, i, 2] <- wt2_fit2
+  wt2[id, i, 3] <- wt2_fit3
+  
+}
+
+```
+
+
+```{r}
+# bin time
+df_wt <- bind_rows(
+  
+  wt1[,,1] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut1, N1),
+          model = "In-sample"), 
+  
+  wt2[,,1] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut2, N2),
+          model = "None"), 
+  
+  wt2[,,2] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut2, N2),
+          model = "N(5, 1)"),
+  
+  wt2[,,3] %>% data.frame() %>%
+    pivot_longer(everything(), values_to = "weight", names_to = "tid") %>%
+    mutate(time = rep(ut2, N2), 
+           model = "N(0, 5)") 
+)
+
+
+df_wt$tbin <- cut(df_wt$time, breaks = seq(0, 1, by = 0.1))
+
+```
+
+```{r}
+sens_wt_contam <- df_wt %>%
+  mutate(model=factor(model, 
+                      levels = c("In-sample", "None", "N(5, 1)", "N(0, 5)")))
+
+# sens_wt_contam %>% filter(model == "N(0, 5)") %>% 
+#   arrange(desc(weight))
+```
+
+
+```{r boxp_wt_contam}
+sens_wt_contam %>%
+  ggplot()+
+  geom_boxplot(aes(x=tbin, y=weight, group = tbin), outlier.size = 0.5, na.rm = T)+
+  facet_wrap(~model, scales = "free_x")+
+  labs(x="Time interval", y = "Weight")+
+  theme(axis.text.x = element_text(size = 5))
+```
+

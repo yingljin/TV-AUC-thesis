@@ -41,7 +41,7 @@ vignettes/*.pdf
 # Access
 *.mdb
 OutputData/*
-Docs/*
+Manuscripts/*
 Images/*
 screenshots/*
 Sciprts/*
