@@ -1,5 +1,37 @@
 
-# This script includes functions that are used specifically for data application
+# This script includes functions that are used 
+# in the case study specifically for data application
+
+
+#### Non-parametric AUC ####
+# makers: estimated risk score/linear predictors
+# Stime: even times
+# status: even status
+# predict.time: time point at which to calculate AUC for 
+
+ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
+  if (length(entry) == 0) {
+    entry = rep(0, NROW(Stime))
+  }
+  at.risk <- ((Stime >= predict.time) & (entry <= predict.time))
+  eta     <- marker[at.risk]
+  status2 <- status
+  status2[Stime > predict.time] <- 0
+  status2 <- status2[at.risk]
+  
+  C_num <- 0
+  n_case_t    <- sum(status2)
+  n_control_t <- sum(1-status2)
+  inx_ti <- which(status2 == 1)
+  inx_tj <- which(status2 == 0)
+  for(id in inx_ti){
+    C_num <- C_num + sum(eta[id] > eta[inx_tj]) + 0.5*sum(eta[id] == eta[inx_tj])
+  }
+  out <- C_num/(n_case_t*n_control_t)
+  
+  out     
+}
+
 
 ##### GH for gam model ##### 
 
@@ -25,59 +57,40 @@ calc_c_gh <- function(beta_hat, X){
 }
 
 
-#### Training estimates #### 
+#### Harrell's C-index #####
+# makers: estimated risk score/linear predictors
+# Stime: even times
+# status: even status
 
-# calcualte AUC from GAM model on training set
-
-## fit: GAM-cox model
-## data: dataframe with columns time, event
-## t: unique event time in training data
-## nt: number of unique event time
-
-
-train_auc <- function(fit = fit_k, data = df_train_k,
-                      t = t_uni_train, nt = nt_uni_train){
-  # set up results container
-  auc_mat <- matrix(NA, nrow = nt, ncol = 4)
-  colnames(auc_mat) <- c("time", "HZ", "NP", "SNP")
-  auc_mat[, "time"] <- t
-  
-  # estimated risk score
-  data$eta <- fit$linear.predictors
-  
-  # calculate in-sample AUC
-  for(i in seq_along(t)){
-    t_i <- t[i]
-    # HZ
-    auc_mat[i, "HZ"] <- CoxWeights(marker = data$eta, 
-                                   Stime = data$time,
-                                   status = data$event,
-                                   predict.time = t_i, entry = NULL)$AUC
-    
-    # non-parametric estimator
-    auc_mat[i, "NP"] <- ID_AUC(marker = data$eta, 
-                               Stime = data$time, 
-                               status = data$event,
-                               predict.time = t_i,  entry = NULL)
-    
+calc_c <- function(marker, Stime, status){
+  utimes <- sort(unique(Stime[status==1]))
+  num <- denom <- 0
+  for(ut in seq_along(utimes)){
+    ## current time
+    ti    <- utimes[ut]
+    ## subjects who experienced an event at current time
+    inx_i <- which(Stime == ti & status==1)
+    ## subjects with observed times beyond event current time
+    inx_j <- which(Stime > ti)
+    ## number of "cases" and "controls" at time current time
+    n_case_t    <- length(inx_i)
+    n_control_t <- length(inx_j)
+    for(i in seq_along(inx_i)){
+      num   <- num + sum( (marker[inx_j] > marker[inx_i[i]] ) ) + 0.5*sum(marker[inx_j] == marker[inx_i[i]])
+    }
+    denom <- denom + n_case_t*n_control_t
   }
-  # smoothed empirical AUC
-  sm_fit <- gam(NP ~ s(time, k = 30, bs = "cr"), method = "REML", 
-                data = as.data.frame(auc_mat))
-  auc_mat[, "SNP"] <- predict(sm_fit)
-  
-  return(auc_mat)
+  1-num/denom
 }
 
+#### Calculate and format AUC ####
 
-#### Testing estimates ####
+# eta is a vector biomaker/linear predictor
+## t: unique event time in training data
+## nt: number of unique events time points
+## data: data set with columns of time, event
 
-## eta: linear predictors/risk score
-## data: dataframe with columns time, event
-## t: unique event time in testing data
-## nt: number of unique event time
-
-test_auc <- function(eta, data = data_test, t = t_uni_test, nt = nt_uni_test){
+tv_auc <- function(eta, data, t, nt){
   # set up results container
   auc_mat <- matrix(NA, nrow = nt, ncol = 4)
   colnames(auc_mat) <- c("time", "HZ", "NP", "SNP")
@@ -148,6 +161,36 @@ intAUC_appl <- function(AUC, utimes, St, method="HZ"){
   iAUC <- iAUC / W
   
   return(iAUC)
+}
+
+#### Calculate and format AUC ####
+
+## data: data set with columns of time, event
+## KM_est: estimated survival 
+## auc_mat: time-varying auc 
+## coef: estimated coefficients
+## X_mat: covariantes
+
+concord <- function(data, KM_est, auc_mat, coef, X_mat){
+  
+  auc_sort <-arrange(data.frame(auc_mat), time)
+  eta <- X_mat %*% coef
+  
+  # result container
+  c_mat <- matrix(NA, nrow = 1, ncol = 5)
+  colnames(c_mat)<- c("GH", "HZ",
+                      "Harrell's", "NP", "SNP")
+  # concordance
+  c_mat[, "GH"] <- coxphCPE_eta(betahat = coef, X_mat)
+  c_mat[, "HZ"] <- intAUC(auc_sort$HZ, auc_sort$time, 
+                          KM_est, method = "HZ")
+  c_mat[, "Harrell's"] <- calc_c(eta, data$time, data$event)
+  c_mat[, "NP"] <- intAUC(auc_sort$NP, auc_sort$time, 
+                          KM_est, method = "smS")
+  c_mat[, "SNP"] <- intAUC(auc_sort$SNP, auc_sort$time, 
+                           KM_est, method = "smS")
+  
+  return(c_mat)
 }
 
 

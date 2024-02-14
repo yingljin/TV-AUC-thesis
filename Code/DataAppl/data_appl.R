@@ -1,10 +1,11 @@
 
-# This code reproduces the data application section 
-# in the manuscript
+# This code reproduces the case study results on NHANES data
+# corresponding to Section 5.3 in the manuscript
 
-##### set-up #####
-rm(list = ls())
-library("survival");library("risksetROC");
+##### set up #####
+
+library("survival")
+library("risksetROC")
 library(mgcv)
 library(here)
 library(tidyverse)
@@ -32,9 +33,7 @@ df_analysis_subj <- df_analysis_subj %>%
 
 ##### source code #####
 
-# same estimators from the simulation section
-source(here("Code/Simulation/helpers.R")) 
-# functions for saving/formatting results, and calculation of GH 
+# helper functions
 source(here("Code/DataAppl/helpers_appl.R"))
 
 
@@ -101,13 +100,13 @@ for(k in 1:nfolds){
         if(!inherits(fit_k_gam,"try-error")){
           # TV-AUC
           ## in-sample
-          tvauc_in_gam[[k]] <- train_auc(fit_k_gam, 
+          tvauc_in_gam[[k]] <- tv_auc(fit_k_gam$linear.predictors, 
                                      data = df_train_k %>% 
                                        select(event_time_years, mortstat) %>% 
                                        rename("time" = event_time_years,
                                               "event" = mortstat), 
                                      t = t_uni_train, nt = nt_uni_train)
-          tvauc_in_lin[[k]] <- train_auc(fit_k_lin, 
+          tvauc_in_lin[[k]] <- tv_auc(fit_k_lin$linear.predictors, 
                                          data = df_train_k %>% 
                                            select(event_time_years, mortstat) %>% 
                                            rename("time" = event_time_years,
@@ -117,14 +116,14 @@ for(k in 1:nfolds){
           
           ## out-of-sample
           eta_test_gam <- predict(fit_k_gam, newdata = df_test_k, type = "link")
-          tvauc_out_gam[[k]] <- test_auc(eta_test_gam, 
+          tvauc_out_gam[[k]] <- tv_auc(eta_test_gam, 
                                      data = df_test_k %>% 
                                        dplyr::select(event_time_years, mortstat) %>% 
                                        rename("time" = event_time_years,
                                               "event" = mortstat),
                                      t = t_uni_test, nt = nt_uni_test)
           eta_test_lin <- predict(fit_k_lin, newdata = df_test_k, type = "lp")
-          tvauc_out_lin[[k]] <- test_auc(eta_test_lin, 
+          tvauc_out_lin[[k]] <- tv_auc(eta_test_lin, 
                                          data = df_test_k %>% 
                                            dplyr::select(event_time_years, mortstat) %>% 
                                            rename("time" = event_time_years,
@@ -178,14 +177,14 @@ for(k in 1:nfolds){
         auc_sort_out_gam <-arrange(data.frame(tvauc_out_gam[[k]]), time)
         auc_sort_in_lin <-arrange(data.frame(tvauc_in_lin[[k]]), time)
         auc_sort_out_lin <-arrange(data.frame(tvauc_out_lin[[k]]), time)
-        c_gam["NP", "In-sample", k] <- intAUC(auc_sort_in_gam$NP, 
+        c_gam["NP", "In-sample", k] <- intAUC_appl(auc_sort_in_gam$NP, 
                                               auc_sort_in_gam$time, 
                                               KM_est_train, method = "smS")
         c_gam["NP", "Out-of-sample", k] <- intAUC_appl(auc_sort_out_gam$NP, 
                                                        auc_sort_out_gam$time, 
                                                        KM_est_test, 
                                                        method = "smS")
-        c_lin["NP", "In-sample", k] <- intAUC(auc_sort_in_lin$NP, 
+        c_lin["NP", "In-sample", k] <- intAUC_appl(auc_sort_in_lin$NP, 
                                               auc_sort_in_lin$time, 
                                               KM_est_train, method = "smS")
         c_lin["NP", "Out-of-sample", k] <- intAUC_appl(auc_sort_out_lin$NP, 
@@ -194,14 +193,14 @@ for(k in 1:nfolds){
                                                        method = "smS")
         
         ## Smoothed non-parametric
-        c_gam["SNP", "In-sample", k] <- intAUC(auc_sort_in_gam$SNP,
+        c_gam["SNP", "In-sample", k] <- intAUC_appl(auc_sort_in_gam$SNP,
                                               auc_sort_in_gam$time, 
                                               KM_est_train, method = "smS")
         c_gam["SNP", "Out-of-sample", k] <- intAUC_appl(auc_sort_out_gam$SNP,
                                                         auc_sort_out_gam$time, 
                                                         KM_est_test, 
                                                         method = "smS")
-        c_lin["SNP", "In-sample", k] <- intAUC(auc_sort_in_lin$SNP,
+        c_lin["SNP", "In-sample", k] <- intAUC_appl(auc_sort_in_lin$SNP,
                                                auc_sort_in_lin$time, 
                                                KM_est_train, method = "smS")
         c_lin["SNP", "Out-of-sample", k] <- intAUC_appl(auc_sort_out_lin$SNP,
@@ -213,7 +212,7 @@ for(k in 1:nfolds){
         setTxtProgressBar(pb, k)
 }
 
-##### Figures #####
+##### Check results #####
 ## concordance
 df_c_gam <- as.data.frame.table(c_gam) %>% mutate(model="GAM")
 df_c_lin <- as.data.frame.table(c_lin) %>% mutate(model = "Lin")
@@ -229,17 +228,8 @@ bind_rows(df_c_gam, df_c_lin) %>%
         ylab("Concordance") + labs(fill="")+
   scale_fill_manual(values = cbPalette)+
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))
-ggsave(filename = "concordance.png", path = "Images/data_appl", width=10, height=8, bg = "white")
 
-# check concordance numbers
-## gam 
 df_c_gam %>% group_by(estimator, estimand) %>% summarise_at("Freq", mean)
-
-
-#bind_rows(df_c_gam, df_c_lin) %>% 
-#  group_by(estimator, estimand, model) %>% 
-#  summarise_at("Freq", mean)
-  
 
 ## TV-AUC
 tvauc_in_df_gam <- lapply(tvauc_in_gam, as.data.frame) %>%
@@ -268,55 +258,7 @@ bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) 
   facet_grid(~Estimator)+
   scale_color_manual(values = cbPalette)+
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))
-ggsave(filename = "tvauc_gam.png", path = "Images/data_appl", 
-       width=15, height=4, bg="white")
 
 
 save(df_c_gam, df_c_lin, tvauc_in_df_gam, tvauc_in_df_lin, tvauc_out_df_gam, tvauc_out_df_lin,
      file = here("Data/ApplResult.RData"))
-# out-of-sample SNP of ACM seems wired (too high)
-
-## only one fold
-## fold 1, 5  are abnormally high
-# many folds seems to have concordance closer to later (higher values)
-tvauc_out_df_gam %>% select(time, SNP, model, iter) %>% filter(model == "GAM") %>%
-  ggplot(aes(x = time, y = SNP))+
-  geom_point()+
-  facet_wrap(~iter)
-
-tvauc_in_df_gam %>% select(time, SNP, model, iter) %>% filter(model == "GAM") %>%
-  ggplot(aes(x = time, y = SNP))+
-  geom_point()+
-  facet_wrap(~iter)
-
-df_c_gam %>% filter(estimator=="SNP" & estimand == "Out-of-sample")
-
-bind_rows(tvauc_out_df_gam %>% select(time, SNP, model, iter) %>% filter(model == "GAM") %>% mutate(sample="out"),
-          tvauc_in_df_gam %>% select(time, SNP, model, iter) %>% filter(model == "GAM") %>% mutate(sample="in")) %>%
-  ggplot(aes(x = time, y = SNP, col=sample))+
-  geom_point()+
-  facet_wrap(~iter)
-  
-
-## suvival functions
-par(mfrow = c(2, 5))
-for(k in 1:nfolds){
-
-  df_test_k <- df_analysis_subj[inx_ls[[k]],]
-  KM_fit_test  <- survfit(Surv(event_time_years,mortstat) ~ 1, timefix=FALSE, data=df_test_k)
-  KM_est_test <- KM_fit_test$surv[KM_fit_test$n.event>0]
-  t_uni_test <- unique(df_test_k$event_time_years[df_test_k$mortstat==1])
-  fit_S <- scam(St ~ s(ut, bs="mpd", k = 20),
-                data=data.frame(ut=t_uni_test, St=KM_est_test))
-  df_pred <- data.frame(ut = rep(t_uni_test, each=2) + rep(c(-0.00001,0.00001), length(t_uni_test)))
-  # numerator
-  St_pred <- predict(fit_S, newdata=df_pred, type='response')
-  ft     <- -diff(St_pred)[seq(1,2*length(t_uni_test),by=2)]   
-  wt <- 2 * ft * KM_est_test
-  # denominator
-  
-  
-  plot(t_uni_test, KM_est_test, main = k)
-  
-}
-

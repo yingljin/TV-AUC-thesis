@@ -50,41 +50,41 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
 }
 
 
-#### Concordance by weighted integration of AUC ####
-# AUC: time-varying AUC
-# utimes: even times
-# St: estimated survival function
-# method: whether or not to use smoothed survival function
-# k: basis dimension for smoothing survival function
-# , n_event=NULL, Ct=NULL
+#### Concrodance from GAM-Cox model ####
 
-intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, k=10,...){
+# calculate truncated concordance weighted by estimated survival probability and density
+# AUC: AUC estimates from previous functions
+# utimes: event time
+# St: survival function values
+# method: "HZ" estimates survival density by slope, while "smS" uses scam smoothing
+
+intAUC_appl <- function(AUC, utimes, St, method="HZ"){
   ut <- utimes
-  # estimate survival probablity and calculate density function
+  # estimate survival probablity
   if(method == "HZ"){
-      ft <- rep(NA, length(St))
-      ft[1] <- (1 - St[1])/(ut[1])
-      for(j in 2:length(St)){
-        ft[j] <- (St[j - 1] - St[j])/(ut[j]-ut[j-1])
-      }
-    }
-  if(method == "smS"){
-      fit_S <- scam(St ~ s(ut, bs="mpd",k=k),
-                    data=data.frame(ut=ut, St=St))
-      df_pred <- data.frame(ut = rep(ut, each=2) + rep(c(-0.00001,0.00001), length(ut)))
-      St_pred <- predict(fit_S, newdata=df_pred, type='response')
-      ft     <- -diff(St_pred)[seq(1,2*length(ut),by=2)]                    
-    }
-    mIndex <- length(ut)
-    wt <- 2 * ft * St
-    # use trapezoidal rule to approximate integral
-    iAUC <- ut[1] * wt[1] * AUC[1] / 2 # ft[0] = 1 - St[0] = 1 - 1 = 0, so wt[0] = 0
-    W <- ut[1] * wt[1] / 2
+    ft <- rep(NA, length(St))
+    ft[1] <- (1 - St[1])/(ut[1])
     for(j in 2:length(St)){
-      iAUC <- iAUC + (wt[j] * AUC[j] + wt[j - 1] * AUC[j - 1]) * (ut[j] - ut[j - 1]) / 2
-      W <- W + (wt[j] + wt[j - 1]) * (ut[j] - ut[j - 1]) / 2
+      ft[j] <- (St[j - 1] - St[j])/(ut[j]-ut[j-1])
     }
-    iAUC <- iAUC / W
+  }
+  if(method == "smS"){
+    fit_S <- scam(St ~ s(ut, bs="mpd", k = 20),
+                  data=data.frame(ut=ut, St=St))
+    df_pred <- data.frame(ut = rep(ut, each=2) + rep(c(-0.00001,0.00001), length(ut)))
+    St_pred <- predict(fit_S, newdata=df_pred, type='response')
+    ft     <- -diff(St_pred)[seq(1,2*length(ut),by=2)]                    
+  }
+  mIndex <- length(ut)
+  wt <- 2 * ft * St
+  # use trapezoidal rule to approximate integral
+  iAUC <- ut[1] * wt[1] * AUC[1] / 2 # ft[0] = 1 - St[0] = 1 - 1 = 0, so wt[0] = 0
+  W <- ut[1] * wt[1] / 2
+  for(j in 2:length(St)){
+    iAUC <- iAUC + (wt[j] * AUC[j] + wt[j - 1] * AUC[j - 1]) * (ut[j] - ut[j - 1]) / 2
+    W <- W + (wt[j] + wt[j - 1]) * (ut[j] - ut[j - 1]) / 2
+  }
+  iAUC <- iAUC / W
   
   return(iAUC)
 }
@@ -115,22 +115,29 @@ calc_c <- function(marker, Stime, status){
   1-num/denom
 }
 
-##### Gonen & Heller #####
-# betahat: estimates of coefficient
-# Xmat: covariates 
+##### GH for gam model ##### 
 
-coxphCPE_eta <- function (betahat,Xmat){
-  n <- nrow(Xmat)
-  p <- length(betahat)
-  xbeta <- Xmat%*%betahat
-  bw <- 0.5 * sd(xbeta) * (n^(-1/3))
-  zzz <- .Fortran("cpesub", as.integer(n), as.integer(p), as.double(Xmat), 
-                  as.double(xbeta), as.double(bw), CPE = double(1), CPEsmooth = double(1), 
-                  varDeriv = double(p), uRowSum = double(n), uSSQ = double(1), 
-                  PACKAGE = "clinfun")
-  CPE <- 2 * zzz$CPE/(n * (n - 1))
-  return(CPE)
+## calculate concordance under Gonen and heller 
+## beta_hat: coefficient estimate from cox gam model
+## X: design matrix
+calc_c_gh <- function(beta_hat, X){
+  N <- nrow(X)
+  C <- 0
+  for(i in 1:(N-1)){
+    for(j in (i+1):N){
+      eta_ij <- (X[i,,drop=F] - X[j,,drop=F]) %*% beta_hat
+      if(eta_ij < 0){
+        C <- C + 1/(1 + exp(eta_ij))
+      }
+      else if(eta_ij>0){
+        C <- C + 1/(1 + exp(-eta_ij))
+      }
+      
+    }
+  }
+  2/(N*(N-1))*C
 }
+
 
 #### Calculate and format AUC ####
 
