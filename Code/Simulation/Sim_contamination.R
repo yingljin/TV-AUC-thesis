@@ -1,9 +1,8 @@
 # This script implements the simulation study 
 # investigating the effect of contamination
-# by introducing outliying observations in the testing dataset
+# corresponding to Section 4.2 in the manuscript
 
 ##### set up #####
-rm(list = ls())
 library("survival")
 library("ggplot2")
 library(ggpubr)
@@ -26,14 +25,12 @@ set.seed(512)
 # helper functions
 # list.files("Code/Simulation")
 source(here("Code/Simulation/helpers.R"))
-source("Code/Simulation/helpers_estimator.R")
 
 #### Simulation set up ####
 
 M <- 1000 # number of simulated data sets
 N <- 500 # number of subjects
-#N <- 1000 # number of subjects
-Beta <- c(1,-1,0.25)
+Beta <- c(1,-1,0.25) # true coefficients
 
 # training and test sample size 
 N_obs <- N*0.5
@@ -52,12 +49,9 @@ data_lst <- list()
 # testing data: introduce outliers
 # case 1: 10% outliers, covariate from N(5, 0)
 # case 2: 10% outliers, covariate from N(0, 5)
-
-
+# case 3: no outliers
 
 iter <- 1
-# skip <- 0 # This is to re-generate data if a dataset has fitting issues
-# because small number of unique events 
 
 pb <- txtProgressBar(min=0, max=M,style=3)
 while(iter <= M){
@@ -80,21 +74,12 @@ while(iter <= M){
   data_test1 <- data_test
   data_test1$X[out_id1, ] <- rnorm(0.1*N_obs*3, mean=5, sd=1) # adjust covariate value
   data_test1$true_eta[out_id1] <- data_test1$X[out_id1, ] %*% Beta # risk score
-  # boxplot(data_test1$true_eta)
   
   # test data 2: 10% outlier, 100 times larger risk score
   data_test2 <- data_test
   data_test2$X[out_id1, ] <- rnorm(0.1*N_obs*3, mean=0, sd=5) # adjust covariate value
   data_test2$true_eta[out_id1] <- data_test2$X[out_id1, ] %*% Beta # risk score
-  # boxplot(data_test2$true_eta)
-  
-  # test data 3: 20% outlier, 10 times larger risk score
-  # out_id2 <- sample(1:N_obs, size = 0.2*N_obs)
-  # data_test3 <- data_test
-  # data_test3$X[out_id2, ] <- 10*data_test3$X[out_id2, ] # adjust covariate value
-  # data_test3$true_eta[out_id2] <- data_test3$X[out_id2, ] %*% Beta # risk score
-  #boxplot(data_test3$true_eta)
-  
+
   # fit our cox model on training data
   fit_cox <- coxph(Surv(time, event) ~ X, data=data_train)
   
@@ -142,12 +127,6 @@ while(iter <= M){
   c_test2 <- concord(data_test2, KM_est_test, auc_est_test2, 
                      fit_cox$coefficients, data_test2$X)
   
-  # case 3
-  # auc_est_test3 <- tv_auc(data_test3$X %*% coef(fit_cox), data_test3, 
-  #                         ut_test, nt_test)
-  # c_test3 <- concord(data_test3, KM_est_test, auc_est_test3, 
-  #                    fit_cox$coefficients, data_test3$X)
-  
   # clean results
   tv_auc_df <- bind_rows(
     auc_est_train %>% data.frame() %>% mutate(sample = "In-sample"),
@@ -156,9 +135,7 @@ while(iter <= M){
     auc_est_test1 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
                                              outlier = "N(5, 1)"),
     auc_est_test2 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-                                             outlier = "N(0, 5)"),
-    # auc_est_test3 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-    #                                          outlier = "20%, sd = 10")
+                                             outlier = "N(0, 5)")
   )
   
   c_df <- bind_rows(
@@ -168,9 +145,7 @@ while(iter <= M){
     c_test1 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
                                               outlier = "N(5, 1)"),
     c_test2 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-                                              outlier = "N(0, 5)"),
-    # c_test3 %>% data.frame() %>% mutate(sample = "Out-of-sample", 
-    #                                           outlier = "20%, sd = 10")
+                                              outlier = "N(0, 5)")
   )
     
     # save to final results
@@ -182,10 +157,6 @@ while(iter <= M){
     iter <- iter+1
 }
 
-##### One iteration #####
-
-save(data_train, data_test, data_test1, data_test2,
-     file = here("Data/OneIterContamData.RData"))
 
 #### Results ####
 

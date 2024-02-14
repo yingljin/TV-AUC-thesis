@@ -7,8 +7,9 @@
 # function for simulating survival times with Weibull baseline hazard
 # eta: vector containing the linear predictor for each subject
 # lambda: scale parameter for the baseline hazard
-# p: shape paramter for the baseline hazard
+# p: shape parameter for the baseline hazard
 # gen_Ct: function for generating censoring times
+
 gen_St <- function(eta, lambda=2, p=2, gen_Ct){
   N <- length(eta)
   U <- runif(N, 0, 1)
@@ -19,7 +20,12 @@ gen_St <- function(eta, lambda=2, p=2, gen_Ct){
 }
 
 
-##### Non-parametric estimator of AUC #####
+#### Non-parametric AUC ####
+# makers: estimated risk score/linear predictors
+# Stime: even times
+# status: even status
+# predict.time: time point at which to calculate AUC for 
+
 ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
   if (length(entry) == 0) {
     entry = rep(0, NROW(Stime))
@@ -44,34 +50,17 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
 }
 
 
-#### Harrell's C-index #####
-calc_c <- function(marker, Stime, status){
-  utimes <- sort(unique(Stime[status==1]))
-  num <- denom <- 0
-  for(ut in seq_along(utimes)){
-    ## current time
-    ti    <- utimes[ut]
-    ## subjects who experienced an event at current time
-    inx_i <- which(Stime == ti & status==1)
-    ## subjects with observed times beyond event current time
-    inx_j <- which(Stime > ti)
-    ## number of "cases" and "controls" at time current time
-    n_case_t    <- length(inx_i)
-    n_control_t <- length(inx_j)
-    for(i in seq_along(inx_i)){
-      num   <- num + sum( (marker[inx_j] > marker[inx_i[i]] ) ) + 0.5*sum(marker[inx_j] == marker[inx_i[i]])
-    }
-    denom <- denom + n_case_t*n_control_t
-  }
-  1-num/denom
-}
+#### Concordance by weighted integration of AUC ####
+# AUC: time-varying AUC
+# utimes: even times
+# St: estimated survival function
+# method: whether or not to use smoothed survival function
+# k: basis dimension for smoothing survival function
+# , n_event=NULL, Ct=NULL
 
-#### Truncated Concordance ####
-#  integral of AUC weighted by smoothed estimated survival probability and density
-
-intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, Ct=NULL, k=10,...){
+intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, k=10,...){
   ut <- utimes
-  # estimate survival probablity
+  # estimate survival probablity and calculate density function
   if(method == "HZ"){
       ft <- rep(NA, length(St))
       ft[1] <- (1 - St[1])/(ut[1])
@@ -100,14 +89,39 @@ intAUC <- function(AUC, utimes, St, method="HZ", smoothAUC=FALSE, n_event=NULL, 
   return(iAUC)
 }
 
+#### Harrell's C-index #####
+# makers: estimated risk score/linear predictors
+# Stime: even times
+# status: even status
+
+calc_c <- function(marker, Stime, status){
+  utimes <- sort(unique(Stime[status==1]))
+  num <- denom <- 0
+  for(ut in seq_along(utimes)){
+    ## current time
+    ti    <- utimes[ut]
+    ## subjects who experienced an event at current time
+    inx_i <- which(Stime == ti & status==1)
+    ## subjects with observed times beyond event current time
+    inx_j <- which(Stime > ti)
+    ## number of "cases" and "controls" at time current time
+    n_case_t    <- length(inx_i)
+    n_control_t <- length(inx_j)
+    for(i in seq_along(inx_i)){
+      num   <- num + sum( (marker[inx_j] > marker[inx_i[i]] ) ) + 0.5*sum(marker[inx_j] == marker[inx_i[i]])
+    }
+    denom <- denom + n_case_t*n_control_t
+  }
+  1-num/denom
+}
+
 ##### Gonen & Heller #####
+# betahat: estimates of coefficient
+# Xmat: covariates 
+
 coxphCPE_eta <- function (betahat,Xmat){
-  # if (class(phfit) != "coxph") 
-  #   stop("phfit shoud be coxph class object")
   n <- nrow(Xmat)
-  # betahat <- phfit$coefficients
   p <- length(betahat)
-  # vbetahat <- phfit$var
   xbeta <- Xmat%*%betahat
   bw <- 0.5 * sd(xbeta) * (n^(-1/3))
   zzz <- .Fortran("cpesub", as.integer(n), as.integer(p), as.double(Xmat), 
@@ -115,16 +129,77 @@ coxphCPE_eta <- function (betahat,Xmat){
                   varDeriv = double(p), uRowSum = double(n), uSSQ = double(1), 
                   PACKAGE = "clinfun")
   CPE <- 2 * zzz$CPE/(n * (n - 1))
-  # CPEsmooth <- 2 * zzz$CPEsmooth/(n * (n - 1))
-  # varTerm1 <- 4 * (sum((zzz$uRowSum + rep(0.5, n) - n * CPEsmooth)^2) -
-  #                    (zzz$uSSQ + n/4 - n * CPEsmooth - n * (n - 2) * CPEsmooth^2))/(n *
-  #                                                                                     (n - 1))^2
-  # varDeriv <- 2 * zzz$varDeriv/(n * (n - 1))
-  # varTerm2 <- t(varDeriv) %*% vbetahat %*% varDeriv
-  # varCPE <- varTerm1 + varTerm2
-  # out <- c(CPE, CPEsmooth, sqrt(varCPE))
-  # names(out) <- c("CPE", "smooth.CPE", "se.CPE")
   return(CPE)
 }
 
+#### Calculate and format AUC ####
+
+# eta is a vector biomaker/linear predictor
+## t: unique event time in training data
+## nt: number of unique events time points
+## data: data set with columns of time, event
+
+
+tv_auc <- function(eta, data, t, nt){
+  # set up results container
+  auc_mat <- matrix(NA, nrow = nt, ncol = 4)
+  colnames(auc_mat) <- c("time", "HZ", "NP", "SNP")
+  auc_mat[, "time"] <- t
+  
+  data$eta <- eta
+  
+  # calculate in-sample AUC
+  for(i in seq_along(t)){
+    t_i <- t[i]
+    # HZ
+    auc_mat[i, "HZ"] <- CoxWeights(marker = data$eta, 
+                                   Stime = data$time,
+                                   status = data$event,
+                                   predict.time = t_i, entry = NULL)$AUC
+    
+    # non-parametric estimator
+    auc_mat[i, "NP"] <- ID_AUC(marker = data$eta, 
+                               Stime = data$time, 
+                               status = data$event,
+                               predict.time = t_i,  entry = NULL)
+    
+  }
+  # smoothed empirical AUC
+  sm_fit <- gam(NP ~ s(time, k = 30, bs = "cr"), method = "REML", 
+                data = as.data.frame(auc_mat))
+  auc_mat[, "SNP"] <- predict(sm_fit, newdata = data.frame(time = auc_mat[, "time"]))
+  
+  return(auc_mat)
+}
+
+
+#### Calculate and format AUC ####
+
+## data: data set with columns of time, event
+## KM_est: estimated survival 
+## auc_mat: time-varying auc 
+## coef: estimated coefficients
+## X_mat: covariantes
+
+concord <- function(data, KM_est, auc_mat, coef, X_mat){
+  
+  auc_sort <-arrange(data.frame(auc_mat), time)
+  eta <- X_mat %*% coef
+  
+  # result container
+  c_mat <- matrix(NA, nrow = 1, ncol = 5)
+  colnames(c_mat)<- c("GH", "HZ",
+                      "Harrell's", "NP", "SNP")
+  # concordance
+  c_mat[, "GH"] <- coxphCPE_eta(betahat = coef, X_mat)
+  c_mat[, "HZ"] <- intAUC(auc_sort$HZ, auc_sort$time, 
+                          KM_est, method = "HZ")
+  c_mat[, "Harrell's"] <- calc_c(eta, data$time, data$event)
+  c_mat[, "NP"] <- intAUC(auc_sort$NP, auc_sort$time, 
+                          KM_est, method = "smS")
+  c_mat[, "SNP"] <- intAUC(auc_sort$SNP, auc_sort$time, 
+                           KM_est, method = "smS")
+  
+  return(c_mat)
+}
 

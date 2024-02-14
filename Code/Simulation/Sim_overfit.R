@@ -1,9 +1,9 @@
 
 # This script implements the simulation study 
 # investigating the effect of overfit
+# corresponding to Section 4.1 of the manuscript
 
 ##### set up #####
-rm(list = ls())
 library("survival")
 library("ggplot2")
 library(ggpubr)
@@ -21,18 +21,14 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 # set the seed
 set.seed(726)
 
-
 # helper functions
-# list.files("Code/Simulation")
 source(here("Code/Simulation/helpers.R"))
-source("Code/Simulation/helpers_estimator.R")
 
 #### Simulation set up ####
 
 M <- 1000 # number of simulated data sets
 N <- 500 # number of subjects
-#N <- 1000 # number of subjects
-Beta <- c(1,-1,0.25)
+Beta <- c(1,-1,0.25) # true coefficients
 
 # training and test sample size 
 N_obs <- N*0.5
@@ -50,10 +46,9 @@ c_lst <- list()
 # three true covariates
 # case 1: fit true model
 # case 2: model with 20 additional noise
+#         PS: lasso penalization was also investigated
 # case 3: model with 100 additional noise
-# case 4: true model, but out-of-sample covariates are generated from different distribution
-#         (little overlap)
-
+#         PS: lasso penalization, was also investigated
 
 iter <- 1
 skip <- 0 # This is to re-generate data if a dataset has fitting issues
@@ -203,60 +198,15 @@ while(iter <= M){
   setTxtProgressBar(pb, value=iter)
 }
 
+close(pb)
 
-#### one-iter check #####
+##### Check results #####
 
-save(data_train, data_test, file = here("Data/OneIterData.RData"))
+auc_lst[[1]] %>% lapply(summary)
+table(auc_lst[[1]]$model)
+table(auc_lst[[1]]$sample)
 
-
-auc_df <- bind_rows(auc_est_train, auc_est_test, .id = "sample")
-
-table(auc_df$model)
-head(auc_df)
-
-auc_df_long <- auc_df %>% 
-  mutate(# true = true_auc_sort,
-    sample = factor(sample, levels = 1:2, labels = c("In-sample", "Out-of-sample"))) %>% 
-  pivot_longer(3:5) 
-
-
-auc_df_long$model <- factor(auc_df_long$model, levels =  c("No noise", "20 noise", "20 noise, penalized", 
-                                                           "100 noise", "100 noise, penalized",
-                                                           "Different covariate"))
-table(auc_df_long$model)
-auc_df_long$name <- factor(auc_df_long$name, levels = c("HZ", "SNP", "NP"))
-table(auc_df_long$name)
-
-
-auc_df_long %>% 
-  filter(model!="20 noise, penalized" & model!="100 noise, penalized" & model!="Different covariate") %>%
-  ggplot(aes(x=time, y=value, col=model, linetype = sample))+
-  geom_line()+
-  # geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
-  #             method = "gam")+
-  # geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
-  # labs(x="time", y = "AUC")+
-  # theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
-  facet_wrap(~name)+
-  scale_colour_manual(values=cbPalette)
-
-
-auc_df_long2 %>% 
-  filter(iter == 1) %>% 
-  ggplot(aes(x=time, y=value, col=model))+
-  geom_point()+
-  # geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
-  #             method = "gam")+
-  # geom_line(aes(x = time, y = true), na.rm = T, col = "red", show.legend = F)+
-  # labs(x="time", y = "AUC")+
-  # theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
-  facet_wrap(~name)+
-  scale_colour_manual(values=cbPalette)
-
-
-table(auc_lst_test_diffx[[1]]$model)
-
-##### All iterations #####
+c_lst[[1]]
 
 auc_df <- bind_rows(auc_lst, .id="iter")
 c_df <- bind_rows(c_lst, .id="iter")
@@ -285,51 +235,12 @@ auc_df %>%
   theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
   facet_wrap(~estimator)+
   scale_colour_manual(values=cbPalette)
-ggsave(filename = "tvauc_N250.png", path = "Images/N250", width=15, height=4, bg = "white")
-#ggsave(filename = "tvauc_N500.png", path = "Images/N500", width=15, height=4, bg = "white")
-
-# spread of TV-AUC estimates
-brk <- seq(0, 1, 0.2) # bin time into five different bins
-ggarrange(
-auc_df_long %>%
-  # dplyr::select(-true) %>%
-  filter(sample == "In-sample") %>%
-  mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
-  ggplot(aes(x = factor(time_bin), y = value, fill = name))+
-  geom_boxplot(outlier.size = 0.5)+
-  facet_grid(cols = vars(model))+
-  labs(x = "Time", y = "AUC", title = "In-sample")+
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1), 
-        text=element_text(size = 15),
-        axis.text = element_text(size = 10))+
-  scale_fill_manual(values=cbPalette)+
-  labs(y="AUC"), 
-
-auc_df_long %>%
-  # dplyr::select(-true) %>%
-  filter(sample == "Out-of-sample") %>%
-  mutate(time_bin = cut(time, breaks = brk, include.lowest = T)) %>%
-  ggplot(aes(x = factor(time_bin), y = value, fill = name))+
-  geom_boxplot(outlier.size = 0.5)+
-  facet_grid(cols = vars(model))+
-  labs(x = "Time", y = "AUC", title = "Out-of-sample")+
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.1, hjust = 0.1), 
-        text = element_text(size=15),
-        axis.text = element_text(size = 10))+
-  scale_fill_manual(values=cbPalette)+
-  labs(y="AUC"), nrow=1, common.legend = T)
-ggsave(filename = "tvauc_box_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
-#ggsave(filename = "tvauc_box_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
 
 # concordance
-## ovefit
 c_df %>% pivot_longer(2:6, names_to = "estimator", values_to = "c") %>%
   ggplot()+
   geom_boxplot(aes(x=sample, y=c))+
   facet_grid(rows=vars(estimator), cols=vars(model))
-ggsave(filename = "concordance_N250.png", path = "Images/N250", width=15, height = 4, bg = "white")
-#ggsave(filename = "concordance_N500.png", path = "Images/N500", width=15, height = 4, bg = "white")
-
 
 # save(auc_df_train, auc_df_test, c_df_train, c_df_test, file = here("outputData/estimated_values.RData"))
 save(auc_lst, c_lst, file = here("Data/SimNoiseModel.RData"))
