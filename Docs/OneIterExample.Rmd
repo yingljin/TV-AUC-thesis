@@ -29,31 +29,35 @@ library(risksetROC)
 library(mgcv)
 library(scam)
 library("clinfun")
+library(kableExtra)
 
 # helper functions
 source(here("Code/Simulation/helpers.R"))
-source("Code/Simulation/helpers_estimator.R")
 ```
 
-# Generate data
 
-In this vignette, we will go over one iteration of the simulation study in the manuscript in details. First, let's introduce the data generating mechanism. 
 
-Each simulation dataset includes three components: 
+In this vignette, we will go over the simulation study corresponding to Section 4, using one simulated dataset as an example. 
 
-- Covariates. The three covariates associated with survival outcome are generated independently from standard normal distribution. 
+# Data generation
 
-- Survival outcome, including true survival time $T^*$, censor time $C$ and event statu $I(T^*\leq C)$. In this simulation study, the true survival time is generated from a Cox Proportional Hazard Model with Weiball baseline distribution. The log hazard is linearly correlated with covariates as below:
+Each simulated subject includes the following components: 
 
-$$log \lambda_i(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}, t>0$$
+- Covariates $\mathbf{X}$: The three covariates associated with survival outcome are generated independently from standard normal distribution. 
+
+- True Survival time $T^*$: In this simulation study, the true survival time is generated from a Cox Proportional Hazard Model with Weiball baseline distribution. The log hazard is linearly correlated with covariates as below:
+
+$$log \lambda(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}, t>0$$
 
 with $\boldsymbol{\beta} = (1, -1, 0.25)$ and Weibull baseline hazard $\lambda_0(t) = p\theta t^{p-1}$, $[\theta, p]^t = [2, 2]^t$. 
 
-Censoring times are simulated for Unifrom(0.5, 1), independently of event times. There is also an overall endpoint of follow-up $\tau=1$. No observation is made after this time point.
+- True censoring time $C$: Censoring times are simulated for Unifrom(0.5, 1), independently of event times or covariates. There is also an overall endpoint of follow-up $\tau=1$. No observation is made after this time point.
 
-- Noise. These variables are generated from standard normal distribution. They are not correlated with either the covariate or the outcome, thus should make no contribution to prediction. They are also independent from each other. 
+- Observed survival outcome: The earlier between true survival time and true censoring time ($T = min(T^*, C)$) and event indicator $\delta=I(T^*\leq C)$.
 
-Now let's generated one dataset from this mechanism, and take a brief look at this dataset:
+- Noise $\mathbf{Z}$. These variables are generated from standard normal distribution. They are not correlated with either the covariates or the outcome, thus should make no contribution to prediction. 
+
+Below is overview of one simulated dataset: 
 
 ```{r}
 N <- 500 # sample size
@@ -71,14 +75,7 @@ data$X <- I(X)
 data$Z <- I(Z)
 ```
 
-```{r, fig.width=6}
-# number of event and censor
-table(data$event)
-# Kaplan-Meier curve
-plot(survfit(Surv(time, event)~1, data = data), xlab = "Time", ylab = "Survival")
-```
-
-Once the data is generated, we need to split the sample into training and testing set, so that we can compare the generalizability of different predictive models. In the manuscript, the dataset is split in half: 
+Once the data is generated, we need to split the sample into training and testing set. We use 50% of the subjects as the traininig set and the rest as the testing set. 
 
 ```{r}
 N_obs <- N*0.5
@@ -86,18 +83,29 @@ data_train <- data[1:N_obs,]
 data_test  <- data[-c(1:N_obs),]
 ```
 
-# Cox models
+Below is an example of survival curves on one simualted dataset
 
-To investigate the effect of overfit (induced by noise signals) on predictive performane estimators, we fit three different Cox Proportional Hazard models
+```{r, fig.width=6}
+par(mfrow = c(1, 2))
+# Kaplan-Meier curve
+plot(survfit(Surv(time, event)~1, data = data_train), xlab = "Time", ylab = "Survival", 
+     main = "Trainind set")
+plot(survfit(Surv(time, event)~1, data = data_test), xlab = "Time", ylab = "Survival",
+     main = "Testing set")
+```
 
-1. Not overfitted: $log \lambda_i(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}$
-2. Moderately overfitted: $log \lambda_i(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}+\sum_{j=1}^{20}Z_j\gamma_j$
-3. Severely overfitted: $log \lambda_i(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}+\sum_{j=1}^{100}Z_j\gamma_j$
 
-In 2 and 3, $Z_j$ denotes noise signals. The difference between model 2 and 3 is the number of noise signals included. 
+# Model overfit
 
-Please note that in the following code, a **tryCatch** statement is used to catch model fitting issues. These issues, even though rarely occur, can happen because number of events is less than the number of covariates.
+To investigate the effect of model overfit on the behavior of estimators, we fit three different Cox Proportional Hazard models
 
+1. Not overfitted: $log \lambda(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}$
+2. Moderately overfitted: $log \lambda(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}+\sum_{j=1}^{20}Z_j\gamma_j$
+3. Severely overfitted: $log \lambda(t|\boldsymbol{X}) = log \lambda_0(t) + \boldsymbol{X}^t \boldsymbol{\beta}+\sum_{j=1}^{100}Z_j\gamma_j$
+
+The severely overfitted model has 120 covariates, which is about half of the training sample size. Therefore, it is possible for the dataset to have less unique evens than the number of covariates. In such cases, the cox model would fail to fit. In the manuscript, such datasets with numeric issues are removed and replace with new datasets. 
+
+## Cox models
 
 ```{r}
 # Fit cox models on training data
@@ -112,14 +120,13 @@ fit_3 <- tryCatch(expr = coxph(Surv(time, event) ~ X + Z, data=data_train),
 ```
 
 
-# Incident/Dynamic AUC estimators
+## Incident/Dynamic AUC estimators
 
-Now that we have a dataset, we can evaluated the Incident/Dynamic AUC estimators at each unique even time. In this simulation study, we well compare the following three estimators:
+In this simulation study, we well compare the following three estimators:
 
 - Heagerty & Zheng estimator (HZ). This is a semi-parametric estimator, since it incorporates the term $exp(\boldsymbol{X}^T\boldsymbol{\beta})$ as weights for estimation of sensitivity. 
 
-- Non-parametric estimator (NP). This estimators is established on plug-in principals, using the proportion of true positive and true negative obesrvations for estimation of sensitivity and specificity, respectively. 
-
+- Non-parametric estimator (NP). This estimators is established on plug-in principals, using the proportion of true positive and true negative observations for estimation of sensitivity and specificity, respectively. 
 - Smoothed non-parametric estimator (SNP). This is a smoothed version of the non-parametric estimator above.
 
 At a specificity time point, all three methods estimate sensitivity and specificity at a series of discrete values of $\boldsymbol{X}^T\boldsymbol{\beta}$ to get an ROC curve, and use its integral as estimate of Incident/Dynamic AUC.
@@ -131,9 +138,19 @@ t_uni_train <- unique(data_train$time[data_train$event==1])
 nt_uni_train <- length(t_uni_train)
 
 # AUC estimates
-auc_est1 <- train_auc(fit_1)
-auc_est2 <- train_auc(fit_2)
-auc_est3 <- train_auc(fit_3)
+auc_est1 <- tv_auc(fit_1$linear.predictors, data_train, t_uni_train, nt_uni_train)
+auc_est2 <-  tv_auc(fit_2$linear.predictors, data_train, t_uni_train, nt_uni_train)
+auc_est3 <-  tv_auc(fit_3$linear.predictors, data_train, t_uni_train, nt_uni_train)
+
+# plot  
+bind_rows(data.frame(auc_est1), data.frame(auc_est2), data.frame(auc_est3), .id = "Model") %>% 
+  mutate(Model = factor(Model, levels = 1:3, labels = c("No noise", "20 noise", "100 noise")),
+) %>%
+  pivot_longer(3:5) %>%
+  ggplot(aes(x=time, y=value))+
+  geom_point(size = 0.5)+
+  facet_grid(rows = vars(Model), col = vars(name))+
+  labs(x="Time", y="AUC")
 ```
 
 
@@ -150,53 +167,31 @@ t_uni_test <- unique(data_test$time[data_test$event==1])
 nt_uni_test <- length(t_uni_test)
 
 #  AUC estimates
-test_auc_est1 <- test_auc(test_eta1)
-test_auc_est2 <- test_auc(test_eta2)
-test_auc_est3 <- test_auc(test_eta3)
-```
+test_auc_est1 <- tv_auc(test_eta1, data_test, t_uni_test, nt_uni_test)
+test_auc_est2 <- tv_auc(test_eta2, data_test, t_uni_test, nt_uni_test)
+test_auc_est3 <- tv_auc(test_eta3, data_test, t_uni_test, nt_uni_test)
 
-Now let's take a look at the results:
-
-```{r }
-auc_in <- bind_rows(data.frame(auc_est1), data.frame(auc_est2), data.frame(auc_est3), .id = "Model") %>% 
-  mutate(Model = factor(Model, levels = 1:3, labels = c("No noise", "20 noise", "100 noise")))
-
-auc_out <- bind_rows(data.frame(test_auc_est1), data.frame(test_auc_est2), data.frame(test_auc_est3), .id = "Model") %>% 
-  mutate(Model = factor(Model, levels = 1:3, labels = c("No noise", "20 noise", "100 noise")))
-```
-
-
-```{r}
-ggarrange(
-  ggplot(auc_in)+
-    geom_line(aes(x=time, y=HZ, col = Model, group = Model)),
-  ggplot(auc_out)+
-    geom_line(aes(x=time, y=HZ, col = Model, group = Model)),
-  nrow = 1, common.legend = T)
-```
-
-```{r}
-ggarrange(
-  ggplot(auc_in)+
-    geom_line(aes(x=time, y=NP, col = Model, group = Model)),
-  ggplot(auc_out)+
-    geom_line(aes(x=time, y=NP, col = Model, group = Model)),
-  nrow = 1, common.legend = T)
-```
-
-```{r}
-ggarrange(
-  ggplot(auc_in)+
-    geom_line(aes(x=time, y=SNP, col = Model, group = Model)),
-  ggplot(auc_out)+
-    geom_line(aes(x=time, y=SNP, col = Model, group = Model)),
-  nrow = 1, common.legend = T)
+# plot  
+bind_rows(data.frame(test_auc_est1), data.frame(test_auc_est2), data.frame(test_auc_est3),
+          .id = "Model") %>% 
+  mutate(Model = factor(Model, levels = 1:3, labels = c("No noise", "20 noise", "100 noise"))) %>%
+  pivot_longer(3:5) %>%
+  ggplot(aes(x=time, y=value))+
+  geom_point(size = 0.5)+
+  facet_grid(rows = vars(Model), col = vars(name))+
+  labs(x="Time", y="AUC")
 ```
 
 
-# Concordance estimators:
 
-Once we have the Incident/Dynamic AUC estimates from the previous section, we can use their weighted integral for estimation of concordance. The weights are derived from marginal survival and density function. Therefore, we need to fit a Kaplan-Meier curve first and extract survival probability at each unique even time:
+## Concordance estimators:
+
+Here we compare the behavior of the following estimators: 
+
+- Semi-parmaetric: Heagerty-Zheng, Gonen-Heller
+- Non-parametric: weighted integral of non-parametric AUC, weighted integral of smoothed non-parametric AUC, Harrell's C-index. 
+
+Please note that for weighted integral, the weight of Incident/Dynamic AUC at a specific time points is derived from marginal survival and density function of survival time. The semi-parametric concordance proposed by Heagerty & Zheng used Kaplan-Meier estimator directly. However, this paper proposed the use of smoothed Kaplan-Meier curve. 
 
 ```{r}
 # in-sample
@@ -205,52 +200,37 @@ KM_est_train <- KM_fit_train$surv[KM_fit_train$n.event>0]
 # out-of-sample
 KM_fit_test <- survfit(Surv(time,event)~1, timefix=FALSE, data=data_test)
 KM_est_test <- KM_fit_test$surv[KM_fit_test$n.event>0]
-# figure
-par(mfrow=c(1, 2))
-plot(KM_fit_train, main = "In-sample Kaplan-Meier curve")
-plot(KM_fit_test, main = "Out-of-sample Kaplan-Meier curve")
 ```
-
-Now we can use the functions we wrote to calculate concordance. Please note that the Kaplan-Meier curve is smoothed in the \textit{intAUC} function, since it is a step function whose derivative cannot be easily calculated. The density function used in weights is in fact the derivative of smoothed survival function.
-
-In addition to concordance estimated by integral, we have also included Harrel's C-index (fully non-parametric) and Gonen & Heller concordance (semi-parametric) for reference.
 
 
 ```{r}
 # in-sample
-concord1 <- train_concord(auc_mat = auc_est1, fit = fit_1)
-concord2 <- train_concord(auc_mat = auc_est2, fit = fit_2)
-concord3 <- train_concord(auc_mat = auc_est3, fit = fit_3)
+concord1 <- concord(data_train, KM_est_train, auc_est1, fit_1$coefficients, 
+                    data_train$X)
+concord2 <- concord(data_train, KM_est_train, auc_est2, fit_2$coefficients, 
+                    cbind(data_train$X, data_train$Z[, 1:20]))
+concord3 <- concord(data_train, KM_est_train, auc_est3, fit_3$coefficients, 
+                    cbind(data_train$X, data_train$Z))
 # out-of-sample
-test_concord1 <- test_concord(auc_mat = test_auc_est1, fit = fit_1, 
-                                  eta = test_eta1, 
-                                  X_mat = data_test$X)
-test_concord2 <- test_concord(auc_mat = test_auc_est2, fit = fit_2, 
-                                eta = test_eta2,
-                                X_mat = cbind(data_test$X,data_test$Z[,1:20]))
-test_concord3 <- test_concord(auc_mat = test_auc_est3, fit = fit_3, 
-                                eta = test_eta3,
-                                X_mat = cbind(data_test$X,data_test$Z))
+test_concord1 <- concord(data_test, KM_est_test, test_auc_est1, fit_1$coefficients, data_test$X)
+test_concord2 <- concord(data_test, KM_est_test, test_auc_est2, fit_2$coefficients, 
+                         cbind(data_test$X, data_test$Z[, 1:20]))
+test_concord3 <- concord(data_test, KM_est_test, test_auc_est3, fit_3$coefficients, 
+                         cbind(data_test$X, data_test$Z))
 ```
 
 Now let's take a brief look at the results: 
 
 ```{r, echo=FALSE}
 concord_est_train <- rbind(concord1, concord2, concord3) %>%
-  data.frame() %>%
-     mutate(Model = factor(c("No noise", "20 noise", "100 noise"), 
-                           levels = c("No noise", "20 noise", "100 noise")),
-            Sample = "In-sample") 
+  data.frame(check.names = F) %>%
+     mutate(Model = c("No noise", "20 noise", "100 noise"), .before=1) 
 
 concord_est_test <- rbind(test_concord1, test_concord2, test_concord3) %>%
-      data.frame() %>%
-      mutate(Model = factor(c("No noise", "20 noise", "100 noise"), 
-                           levels = c("No noise", "20 noise", "100 noise")), 
-             Sample = "Out-of-sample") 
+      data.frame(check.names = F) 
 
-bind_rows(concord_est_train, concord_est_test) %>%
-  pivot_longer(1:5, names_to = "Estimator", values_to = "Concordance") %>%
-  ggplot()+
-  geom_line(aes(x=Model, y=Concordance, col=Estimator, group = Estimator))+
-  facet_wrap(~Sample)
+bind_cols(concord_est_train, concord_est_test, .name_repair = "minimal") %>%
+  kable( table.attr="style=\"color:black;\"", digits = 3) %>%
+  kable_styling(full_width = F) %>%
+  add_header_above(c(" " = 1, "In-sample" = 5, "Out-of-sample" = 5))
 ```

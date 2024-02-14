@@ -50,7 +50,7 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
 }
 
 
-#### Concrodance from GAM-Cox model ####
+#### Concrodance by integrating AUC ####
 
 # calculate truncated concordance weighted by estimated survival probability and density
 # AUC: AUC estimates from previous functions
@@ -58,7 +58,7 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
 # St: survival function values
 # method: "HZ" estimates survival density by slope, while "smS" uses scam smoothing
 
-intAUC_appl <- function(AUC, utimes, St, method="HZ"){
+intAUC <- function(AUC, utimes, St, method="HZ", k=10,...){
   ut <- utimes
   # estimate survival probablity
   if(method == "HZ"){
@@ -69,7 +69,7 @@ intAUC_appl <- function(AUC, utimes, St, method="HZ"){
     }
   }
   if(method == "smS"){
-    fit_S <- scam(St ~ s(ut, bs="mpd", k = 20),
+    fit_S <- scam(St ~ s(ut, bs="mpd",k=k),
                   data=data.frame(ut=ut, St=St))
     df_pred <- data.frame(ut = rep(ut, each=2) + rep(c(-0.00001,0.00001), length(ut)))
     St_pred <- predict(fit_S, newdata=df_pred, type='response')
@@ -114,30 +114,22 @@ calc_c <- function(marker, Stime, status){
   }
   1-num/denom
 }
+##### Gonen & Heller #####
+# betahat: estimates of coefficient
+# Xmat: covariates 
 
-##### GH for gam model ##### 
-
-## calculate concordance under Gonen and heller 
-## beta_hat: coefficient estimate from cox gam model
-## X: design matrix
-calc_c_gh <- function(beta_hat, X){
-  N <- nrow(X)
-  C <- 0
-  for(i in 1:(N-1)){
-    for(j in (i+1):N){
-      eta_ij <- (X[i,,drop=F] - X[j,,drop=F]) %*% beta_hat
-      if(eta_ij < 0){
-        C <- C + 1/(1 + exp(eta_ij))
-      }
-      else if(eta_ij>0){
-        C <- C + 1/(1 + exp(-eta_ij))
-      }
-      
-    }
-  }
-  2/(N*(N-1))*C
+coxphCPE_eta <- function (betahat,Xmat){
+  n <- nrow(Xmat)
+  p <- length(betahat)
+  xbeta <- Xmat%*%betahat
+  bw <- 0.5 * sd(xbeta) * (n^(-1/3))
+  zzz <- .Fortran("cpesub", as.integer(n), as.integer(p), as.double(Xmat), 
+                  as.double(xbeta), as.double(bw), CPE = double(1), CPEsmooth = double(1), 
+                  varDeriv = double(p), uRowSum = double(n), uSSQ = double(1), 
+                  PACKAGE = "clinfun")
+  CPE <- 2 * zzz$CPE/(n * (n - 1))
+  return(CPE)
 }
-
 
 #### Calculate and format AUC ####
 

@@ -1,6 +1,6 @@
 # Comparing estimators of Incident/Dynamic AUC and concordance 
 
-This repository saves the code scripts needed for reproducing the simulation and data application results in the corresponding manuscript. Below is a summary of content of the code folder:
+This repository saves the code scripts needed for reproducing the simulation and case study results in the corresponding manuscript. Below is a summary of content of the code folder:
 
 - Simulation
   
@@ -10,9 +10,7 @@ This repository saves the code scripts needed for reproducing the simulation and
   
     Includes functions specifically for data application section, code for data pre-processing and calculate in- and out-of sample estimands by K-fold corss validation. 
 
-
-# 24/1/11
-
-1. The SNP estimates in data application, look at results by CV iterations
-
+- Docs
+  
+    Includes Rmd files used to produced figures and tables in the manuscript. as well as a step-by-step guide fo the simulation study. 
 
