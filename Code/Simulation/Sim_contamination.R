@@ -69,13 +69,13 @@ while(iter <= M){
   data_train <- data[1:N_obs,]
   data_test  <- data[-c(1:N_obs),]
   
-  # test data 1: 10% outlier, 10 times larger risk score
+  # test data 1: 10% outlier, mean change
   out_id1 <- sample(1:N_obs, size = 0.1*N_obs)
   data_test1 <- data_test
   data_test1$X[out_id1, ] <- rnorm(0.1*N_obs*3, mean=5, sd=1) # adjust covariate value
   data_test1$true_eta[out_id1] <- data_test1$X[out_id1, ] %*% Beta # risk score
   
-  # test data 2: 10% outlier, 100 times larger risk score
+  # test data 2: 10% outlier, sd change
   data_test2 <- data_test
   data_test2$X[out_id1, ] <- rnorm(0.1*N_obs*3, mean=0, sd=5) # adjust covariate value
   data_test2$true_eta[out_id1] <- data_test2$X[out_id1, ] %*% Beta # risk score

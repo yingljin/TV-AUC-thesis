@@ -234,3 +234,43 @@ bind_cols(concord_est_train, concord_est_test, .name_repair = "minimal") %>%
   kable_styling(full_width = F) %>%
   add_header_above(c(" " = 1, "In-sample" = 5, "Out-of-sample" = 5))
 ```
+
+# Data contamination
+
+In this section, we illustrate and compared the behavior of estimates under the effect of data contamination. At each iteration we use the same training set, and introduce outliers to the testing data set based on the following scenarios: 
+
+- Mean shift: Outliers are generated from N(5, 1)
+- Large variation: Outliers are generated from N(0, 5)
+
+First, we create artifical outliers in the test data: 
+
+```{r}
+# test data 0: no outlier
+data_train <- data_train %>% select(-Z) 
+data_test  <- data_test %>% select(-Z)
+
+# test data 1: 10% outlier, mean change
+out_id1 <- sample(1:N_obs, size = 0.1*N_obs)
+data_test1 <- data_test
+data_test1$X[out_id1, ] <- rnorm(0.1*N_obs*3, mean=5, sd=1) # adjust covariate value
+data_test1$true_eta[out_id1] <- data_test1$X[out_id1, ] %*% Beta # risk score
+
+# test data 2: 10% outlier, sd change
+data_test2 <- data_test
+data_test2$X[out_id1, ] <- rnorm(0.1*N_obs*3, mean=0, sd=5) # adjust covariate value
+data_test2$true_eta[out_id1] <- data_test2$X[out_id1, ] %*% Beta # risk score
+```
+
+
+```{r}
+data.frame(none = data_test$true_eta, 
+           mean_ch = data_test1$true_eta, 
+           sd_ch = data_test2$true_eta) %>%
+  pivot_longer(1:3) %>%
+  mutate(name = factor(name, levels = c("none", "mean_ch", "sd_ch"),
+                       labels = c("None", "N(5, 1)", "N(0, 5)"))) %>%
+  ggplot(aes(x=name, y=value))+
+  geom_boxplot()+
+  geom_jitter()
+
+```

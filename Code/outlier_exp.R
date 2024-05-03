@@ -74,16 +74,28 @@ ut_test <- unique(data_test$time[data_test$event==1])
 ti <- ut_test[50]
 
 # duplicate the data set and introduce one outlier
-marker_fake <- c(data_test$eta1[-1],  10*sd(data_test$eta1))
-time_fake   <- c(data_test$time[-1], 0.85)
-event_fake  <- c(data_test$event[-1], 0)
-# event_fake  <- c(data_test$event[-1], 1)
+data_test2 <- data_test
+data_test2$X[500, ] <- 40*apply(data_test$X, 2, sd)
+data_test2$eta1 <- as.vector(data_test2$X %*% coef(fit_1))
+data_test2$time[500] <- 0.85
+data_test2$event[500] <- 0
+
+# subjects at risk at t=0.27
+summary(survfit(Surv(time, event) ~ 1, data=data_test2))
+survfit(fit_1)
+
+data_test[500,]
+
+# survival probablity
+est_log_hz <- predict(fit_1, newdata = data_test2)
+est_log_hz <- sort(est_log_hz)
+est_log_hz[500]/est_log_hz[499]
 
 # calculate AUC
 roc_HZ05_eta1 <- CoxWeights(marker=data_test$eta1, Stime=data_test$time, 
                             status=data_test$event, predict.time=ti)
-roc_HZ05_eta_fake <- CoxWeights(marker=marker_fake, Stime=time_fake, 
-                            status=event_fake, predict.time=ti)
+roc_HZ05_eta_fake <- CoxWeights(marker=data_test2$eta1, Stime=data_test2$time, 
+                            status=data_test2$event, predict.time=ti)
 
 #### Plot #####
 # transform the data to ggplot friendly format
@@ -112,5 +124,5 @@ data_plt %>%
   scale_color_manual(values = cbPalette)+
   theme(text=element_text(size=15),
         axis.text = element_text(size=10))
-ggsave(filename="Images/outlier_exp.png",
+ggsave(filename="Images/outlier_exp.pdf",
        width=7, height=4, bg="white", dpi = 300)
