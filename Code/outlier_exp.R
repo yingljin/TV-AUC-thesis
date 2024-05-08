@@ -57,7 +57,7 @@ data$X <- I(X)
 ## separate out the training and test datasets
 data_train <- data[1:N_obs,]
 data_test  <- data[-c(1:N_obs),]
-
+mean(data$time[data$event==1])
 #### Model fit #####
 
 ## fit model on training data
@@ -124,5 +124,74 @@ data_plt %>%
   scale_color_manual(values = cbPalette)+
   theme(text=element_text(size=15),
         axis.text = element_text(size=10))
-ggsave(filename="Images/outlier_exp.pdf",
-       width=7, height=4, bg="white", dpi = 300)
+
+
+##### Non parametric ROC #####
+
+# at the specific time
+## risk set
+risk_set1 <- data_test %>% filter(time>=ti)
+risk_set2 <- data_test2 %>% filter(time>= ti)
+## unique risk iscore
+uni_eta1 <- unique(risk_set1$eta1)
+uni_eta2 <- unique(risk_set2$eta1)
+
+# sens and spec of test set without outlier
+np_sens1 <- np_spec1 <- rep(NA, length(uni_eta1))
+for(i in seq_along(uni_eta1)){
+  
+  this_c <- uni_eta1[i]
+  np_sens1[i] <- sum(risk_set1$eta1>this_c & risk_set1$time==ti & risk_set1$event==1)/sum(risk_set1$time==ti & risk_set1$event==1)
+  np_spec1[i] <- sum(risk_set1$eta1<this_c & risk_set1$time > ti)/sum(risk_set1$time > ti)
+  
+  
+}
+
+plot(1-np_spec1, np_sens1)
+
+# sens and spec of test set with outlier
+np_sens2 <- np_spec2 <- rep(NA, length(uni_eta2))
+for(i in seq_along(uni_eta2)){
+  
+  this_c <- uni_eta2[i]
+  np_sens2[i] <- sum(risk_set2$eta1>this_c & risk_set2$time==ti & risk_set2$event==1)/sum(risk_set2$time==ti & risk_set2$event==1)
+  np_spec2[i] <- sum(risk_set2$eta1<this_c & risk_set2$time > ti)/sum(risk_set2$time > ti)
+  
+  
+}
+
+
+plot(1-np_spec2, np_sens2)
+points(1-np_spec1, np_sens1, col = "red")
+
+ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
+  if (length(entry) == 0) {
+    entry = rep(0, NROW(Stime))
+  }
+  at.risk <- ((Stime >= predict.time) & (entry <= predict.time))
+  eta     <- marker[at.risk]
+  status2 <- status
+  status2[Stime > predict.time] <- 0
+  status2 <- status2[at.risk]
+  
+  C_num <- 0
+  n_case_t    <- sum(status2)
+  n_control_t <- sum(1-status2)
+  inx_ti <- which(status2 == 1)
+  inx_tj <- which(status2 == 0)
+  for(id in inx_ti){
+    C_num <- C_num + sum(eta[id] > eta[inx_tj]) + 0.5*sum(eta[id] == eta[inx_tj])
+  }
+  out <- C_num/(n_case_t*n_control_t)
+  
+  out     
+}
+
+
+
+
+#### figure ####
+#ggsave(filename="Images/outlier_exp.pdf",
+#       width=7, height=4, bg="white", dpi = 300)
+
+gamma(1+1/2)/sqrt(2)
