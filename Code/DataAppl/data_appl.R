@@ -26,7 +26,7 @@ df_analysis_subj <-  read_rds(here("Data/NHANES_application_0824.rds"))
 
 # select variables of interest and center & scale covariates
 df_analysis_subj <- df_analysis_subj %>% 
-  select(event_time_years, mortstat, ASTP_mean, RA_MIMS_mean, age_years_interview,
+  dplyr::select(event_time_years, mortstat, ASTP_mean, RA_MIMS_mean, age_years_interview,
          BMI, TMIMS_mean) %>%
   mutate_at(vars(ASTP_mean, RA_MIMS_mean, age_years_interview,
                  BMI, TMIMS_mean), scale)

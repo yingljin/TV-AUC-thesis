@@ -247,4 +247,4 @@ save(auc_lst, c_lst, file = here("Data/SimNoiseModel.RData"))
 save(train_list, file = here("Data/SimNoiseTrainData.RData"))
 # load(here("Data/results_by_iter.RData"))
 
-
+gamma(1+0.5)/sqrt(2)
