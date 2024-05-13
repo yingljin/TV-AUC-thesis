@@ -73,8 +73,6 @@ while(iter <= M){
   ## separate out the training and test datasets
   data_train <- data[1:N_obs,]
   data_test  <- data[-c(1:N_obs),]
-  train_list[[iter]] <- data_train
-  test_list[[iter]] <- data_test
   
   # fit our 3 models with different number of noise predictors (0, 20, 100)
   # and the latter two with lasso penalization
@@ -192,6 +190,8 @@ while(iter <= M){
     # save to final results
     auc_lst[[iter]] <- tv_auc_df
     c_lst[[iter]] <- c_df
+    train_list[[iter]] <- data_train
+    test_list[[iter]] <- data_test
     
     # move to next iter
     iter <- iter + 1
@@ -239,6 +239,22 @@ c_df %>% pivot_longer(2:6, names_to = "estimator", values_to = "c") %>%
   geom_boxplot(aes(x=sample, y=c))+
   facet_grid(rows=vars(estimator), cols=vars(model))
 
+#### check the NA AUCs ####
+
+
+
+for(i in seq_along(auc_lst)){
+  
+  if(sum(is.na(auc_lst[[i]]$NP)) > 0){
+    print(i)
+  }
+  
+}
+
+auc_lst[[4]] %>% filter(is.na(NP))
+
+train_list[[4]] %>% filter(time==0.9708767)
+View(train_list[[4]] %>% filter(event == 1) %>% arrange(desc(time)))
 
 #### Save data ####
 
