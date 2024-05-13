@@ -40,110 +40,55 @@ set.seed(512)
 ```
 
 
+
+
+
 # Simulation
 
-## Data contamination
-
-- Data contamination is introduced by adding outliers to test datasets (not noise in the model)
-- Within each simulation, we investiage two scenarios: 
-1. 10% contaminated subjects, N(5, 1)
-2. 10% contaminated subjects, N(0, 5)
+## Training data summary 
 
 ```{r}
-load(here("Data/SimContamData.RData"))
-tv_auc_df <- bind_rows(auc_lst) 
-c_df <- bind_rows(c_lst)
+load(here("Data/SimNoiseTrainData.RData"))
+load(here("Data/SimContamTrainData.RData"))
 ```
 
 
-```{r true_vals}
-load(here("Data/true_values.RData"))
+```{r, class.source='fold-show', fig.width=8, fig.height=3}
+all_train_data <- bind_rows(bind_rows(train_list), bind_rows(train_list2))
 
-# use interpolation to estimate AUC on simulated time series
-true_auc_df <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
-                       xout = unique(tv_auc_df$time))
-true_auc_df <- data.frame(true_auc_df) %>% 
-  rename("time" = x, "true_auc" = y)
-```
+# proportion of event and censoring
+table(all_train_data$event)
+table(all_train_data$event)/nrow(all_train_data)
 
-### Incident/Dynamic AUC
+# median event time
+median(all_train_data$time[all_train_data$event==1])
 
-```{r fig_tv_auc_contam, warning=FALSE, fig.height=3, fig.width=9}
-tv_auc_df %>% 
-  left_join(true_auc_df, by = "time") %>%
-  mutate(outlier = ifelse(is.na(outlier), "None", outlier)) %>%
-  pivot_longer(2:4, names_to = "Estimator", values_to = "AUC") %>%
-  mutate(Estimator = factor(Estimator, levels = c("HZ", "NP", "SNP"),
-                            labels = c("Semi-parametric", 
-                                       "Non-parametric",
-                                       "Smoothed non-parametric"))) %>%
+# figure of distribution of event and censoring
+all_train_data %>%
+  mutate(event=ifelse(event==0, "Censor", "Event")) %>%
   ggplot()+
-  geom_smooth(aes(x=time, y=AUC, col=outlier, linetype=sample), 
-              formula = y~s(x, k=30, bs = "cs"), method = "gam", se=F, na.rm = T)+
-  geom_line(aes(x=time, y=true_auc), col = "black", size = 0.5)+
-  facet_wrap(~Estimator, nrow = 1)+
-  scale_color_manual(values = cbPalette)+
-  labs(col = "Outlier", linetype = "Sample", x = "Time")+
-  theme(axis.text.x = element_text(vjust = 0.9))
-```
-
-### Spread of Incident/Dynamic AUC
-
-```{r fig_tvauc_box_contam, fig.width=12, fig.height=3}
-tv_auc_df %>%
-  mutate(time_bin = cut(time, breaks = seq(0, 1, 0.2), include.lowest = T)) %>%
-  mutate(outlier = ifelse(is.na(outlier), "", outlier)) %>%
-  mutate(outlier = relevel(as.factor(outlier), ref = "None")) %>%
-  pivot_longer(c("HZ", "NP", "SNP"), names_to = "Estimator", values_to = "AUC") %>%
-  mutate(Estimator = factor(Estimator, levels = c("HZ", "NP", "SNP"),
-                             labels = c("Semi-parametric", 
-                                       "Non-parametric",
-                                       "Smoothed non-parametric"))) %>%
-  ggplot()+
-  geom_boxplot(aes(x=time_bin, y=AUC, col=Estimator, fill = Estimator),
-               outlier.size = 0.2, show.legend = F)+
-  facet_wrap(~sample+outlier, nrow = 1)+
-  theme(axis.text.x = element_text(vjust = 0.9, angle = 45),
-        text = element_text(size = 12.5))+
-  scale_fill_manual(values = cbPalette)+
-  scale_color_manual(values = cbPalette)+
-  labs(x="Time", y="AUC")
-```
-
-### Concordance
-
-```{r fig_c_contam, fig.width=15, fig.height=5}
-c_df %>% 
-  pivot_longer(1:5, names_to = "estimator", values_to = "Concordance") %>%
-  mutate(sample = factor(sample, levels =c("In-sample", "Out-of-sample"))) %>%
-  mutate(outlier = ifelse(is.na(outlier), "In-sample", outlier)) %>%
-  mutate(outlier = factor(outlier, 
-                          levels = c("In-sample", "None", "N(0, 5)", "N(5, 1)")),
-         estimator = factor(estimator, 
-                            levels = c("HZ", "GH", "Harrell.s", "NP", "SNP"), 
-                            labels = c("HZ", "GH", "Harrell", "NP", "SNP"), )) %>%
-  mutate(type = ifelse(estimator=="HZ"|estimator=="GH", "Semi-parametric", "Non-parametric")) %>%
-  mutate(type = factor(type, levels = c("Semi-parametric", "Non-parametric"))) %>%
-  rename(Sample = sample) %>%
-  ggplot()+
-  geom_boxplot(aes(x=outlier, y=Concordance, fill=Sample, col=Sample), na.rm = T)+
-  geom_hline(yintercept = true_c, col = "black")+
-  facet_wrap(~type+estimator, nrow = 1)+
-  labs(x="", y="Concordance")+
-  theme(axis.text.x = element_text(angle=45, vjust = 0.9, size = 12.5),
-        text = element_text(size = 12.5))+
-  scale_color_manual(values = cbPalette)+
-  scale_fill_manual(values = cbPalette)
+  geom_histogram(aes(x=time), bins=50)+
+  facet_wrap(~event)+
+  labs(x="Time", y= "Count")
+  
 ```
 
 ## Model overfit
 
 ```{r}
 load(here("Data/SimNoiseModel.RData"))
+```
 
+### Incident/Dynamic AUC
+
+```{r}
 tv_auc_df <- bind_rows(auc_lst, .id = "iter") 
 c_df <- bind_rows(c_lst, .id="iter") 
+```
 
+```{r}
+# true auc 
+load(here("Data/true_values.RData"))
 # re-interpolate true AUC
 true_auc_df <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
                        xout = unique(tv_auc_df$time))
@@ -151,11 +96,9 @@ true_auc_df <- data.frame(true_auc_df) %>%
   rename("time" = x, "true_auc" = y)
 ```
 
-### Incident/Dynamic AUC
-
 ```{r fig_tv_auc_noise, warning=FALSE, fig.height=3, fig.width=9}
 tv_auc_df %>% 
-  filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
+  # filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
   mutate(model = factor(model, 
                         levels = c("No noise", "20 noise", "100 noise"))) %>%
   left_join(true_auc_df, by = "time") %>%
@@ -176,9 +119,11 @@ tv_auc_df %>%
 
 ### Spread of Incident/Dynamic AUC
 
+- with the continuous censoring distribution, at some cases the non-parametric values ended up as NA. Also, The semi-parametric when can go over (0, 1) range. 
+
 ```{r fig_tvauc_box_ovefit, fig.width=9, fig.height=6}
 tv_auc_df %>% 
-  filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
+  # filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
   mutate(model = factor(model, 
                         levels = c("No noise", "20 noise", "100 noise"))) %>%
   pivot_longer(c("HZ", "NP", "SNP"), names_to = "Estimator", values_to = "AUC") %>%
@@ -187,10 +132,11 @@ tv_auc_df %>%
                                        "Non-parametric",
                                        "Smoothed non-parametric"))) %>%
   mutate(time_bin = cut(time, breaks = seq(0, 1, 0.2), include.lowest = T)) %>%
-  ggplot(aes(x = factor(time_bin), y = AUC, fill = Estimator, col=Estimator))+
+  ggplot(aes(x = factor(time_bin), y = AUC, fill = Estimator))+
   geom_boxplot(outlier.size = 0.5)+
   facet_grid(rows = vars(sample), cols = vars(model))+
   labs(x = "Time", y= "AUC")+
+  ylim(0, 1)+
   theme(axis.text.x = element_text(vjust = 0.9, angle = 45),
         text = element_text(size = 12.5), 
         legend.position = "top")+
@@ -202,7 +148,7 @@ tv_auc_df %>%
 
 ```{r fig_c_noise, fig.width=15, fig.height=5}
 c_df %>% 
-  filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
+  # filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
   pivot_longer(2:6, names_to = "estimator", values_to = "Concordance") %>%
   mutate(sample = factor(sample, levels =c("In-sample", "Out-of-sample"))) %>%
   mutate(model = factor(model, 
@@ -214,7 +160,7 @@ c_df %>%
   mutate(type = factor(type, levels = c("Semi-parametric", "Non-parametric"))) %>%
   rename(Sample = sample) %>%
   ggplot()+
-  geom_boxplot(aes(x=model, y=Concordance, fill=Sample, col=Sample), na.rm = T)+
+  geom_boxplot(aes(x=model, y=Concordance, fill=Sample), na.rm = T)+
   geom_hline(yintercept = true_c, col = "black")+
   facet_wrap(~type+estimator, nrow = 1)+
   labs(x = "Model")+
@@ -224,6 +170,102 @@ c_df %>%
   scale_fill_manual(values = cbPalette)
 ```
 
+
+## Data contamination
+
+- Data contamination is introduced by adding outliers to test datasets (not noise in the model)
+- Within each simulation, we investiage two scenarios: 
+1. 10% contaminated subjects, N(5, 1)
+2. 10% contaminated subjects, N(0, 5)
+
+```{r}
+load(here("Data/SimContamData.RData"))
+tv_auc_df2 <- bind_rows(auc_lst2) 
+c_df2 <- bind_rows(c_lst2)
+
+```
+
+
+```{r true_vals, eval=FALSE}
+load(here("Data/true_values.RData"))
+
+# use interpolation to estimate AUC on simulated time series
+true_auc_df <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
+                       xout = unique(tv_auc_df$time))
+true_auc_df <- data.frame(true_auc_df) %>% 
+  rename("time" = x, "true_auc" = y)
+```
+
+### Incident/Dynamic AUC
+
+```{r fig_tv_auc_contam, warning=FALSE, fig.height=3, fig.width=9}
+tv_auc_df2 %>% 
+  left_join(true_auc_df, by = "time") %>%
+  mutate(outlier = ifelse(is.na(outlier), "None", outlier)) %>%
+  pivot_longer(2:4, names_to = "Estimator", values_to = "AUC") %>%
+  mutate(Estimator = factor(Estimator, levels = c("HZ", "NP", "SNP"),
+                            labels = c("Semi-parametric", 
+                                       "Non-parametric",
+                                       "Smoothed non-parametric"))) %>%
+  ggplot()+
+  geom_smooth(aes(x=time, y=AUC, col=outlier, linetype=sample), 
+              formula = y~s(x, k=30, bs = "cs"), method = "gam", se=F, na.rm = T)+
+  geom_line(aes(x=time, y=true_auc), col = "black", size = 0.5)+
+  facet_wrap(~Estimator, nrow = 1)+
+  scale_color_manual(values = cbPalette)+
+  labs(col = "Outlier", linetype = "Sample", x = "Time")+
+  theme(axis.text.x = element_text(vjust = 0.9))
+```
+
+### Spread of Incident/Dynamic AUC
+
+```{r fig_tvauc_box_contam, fig.width=12, fig.height=3}
+tv_auc_df2 %>%
+  mutate(time_bin = cut(time, breaks = seq(0, 1, 0.2), include.lowest = T)) %>%
+  mutate(outlier = ifelse(is.na(outlier), "", outlier)) %>%
+  mutate(outlier = relevel(as.factor(outlier), ref = "None")) %>%
+  pivot_longer(c("HZ", "NP", "SNP"), names_to = "Estimator", values_to = "AUC") %>%
+  mutate(Estimator = factor(Estimator, levels = c("HZ", "NP", "SNP"),
+                             labels = c("Semi-parametric", 
+                                       "Non-parametric",
+                                       "Smoothed non-parametric"))) %>%
+  ggplot()+
+  geom_boxplot(aes(x=time_bin, y=AUC, fill = Estimator),
+               outlier.size = 0.2, show.legend = F)+
+  ylim(0, 1)+
+  facet_wrap(~sample+outlier, nrow = 1)+
+  theme(axis.text.x = element_text(vjust = 0.9, angle = 45),
+        text = element_text(size = 12.5))+
+  scale_fill_manual(values = cbPalette)+
+  scale_color_manual(values = cbPalette)+
+  labs(x="Time", y="AUC")
+```
+
+### Concordance
+
+```{r fig_c_contam, fig.width=15, fig.height=5}
+c_df2 %>% 
+  pivot_longer(1:5, names_to = "estimator", values_to = "Concordance") %>%
+  mutate(sample = factor(sample, levels =c("In-sample", "Out-of-sample"))) %>%
+  mutate(outlier = ifelse(is.na(outlier), "In-sample", outlier)) %>%
+  mutate(outlier = factor(outlier, 
+                          levels = c("In-sample", "None", "N(0, 5)", "N(5, 1)")),
+         estimator = factor(estimator, 
+                            levels = c("HZ", "GH", "Harrell.s", "NP", "SNP"), 
+                            labels = c("HZ", "GH", "Harrell", "NP", "SNP"), )) %>%
+  mutate(type = ifelse(estimator=="HZ"|estimator=="GH", "Semi-parametric", "Non-parametric")) %>%
+  mutate(type = factor(type, levels = c("Semi-parametric", "Non-parametric"))) %>%
+  rename(Sample = sample) %>%
+  ggplot()+
+  geom_boxplot(aes(x=outlier, y=Concordance, fill=Sample), na.rm = T)+
+  geom_hline(yintercept = true_c, col = "black")+
+  facet_wrap(~type+estimator, nrow = 1)+
+  labs(x="", y="Concordance")+
+  theme(axis.text.x = element_text(angle=45, vjust = 0.9, size = 12.5),
+        text = element_text(size = 12.5))+
+  scale_color_manual(values = cbPalette)+
+  scale_fill_manual(values = cbPalette)
+```
 
 
 # Case Study
@@ -277,7 +319,7 @@ appl_c <- bind_rows(df_c_gam, df_c_lin) %>%
 ```{r appl_c, fig.width=10, fig.height=3}
 appl_c%>%
   ggplot() + 
-  geom_boxplot(aes(x=model,y=Freq, fill=Sample, col= Sample)) + 
+  geom_boxplot(aes(x=model,y=Freq, fill=Sample)) + 
   facet_wrap(~type+estimator, nrow = 1)+
   labs(x = "Model", y = "Concordance")+
   scale_fill_manual(values = cbPalette)+

@@ -11,11 +11,11 @@
 
 <meta name="author" content="Ying Jin" />
 
-<meta name="date" content="2024-02-14" />
+<meta name="date" content="2024-05-13" />
 
 <title>Progress Report</title>
 
-<script src="ProgressReport_files/header-attrs-2.25/header-attrs.js"></script>
+<script src="ProgressReport_files/header-attrs-2.26/header-attrs.js"></script>
 <script src="ProgressReport_files/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="ProgressReport_files/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
@@ -242,15 +242,52 @@ div.tocify {
 
 <h1 class="title toc-ignore">Progress Report</h1>
 <h4 class="author">Ying Jin</h4>
-<h4 class="date">2024-02-14</h4>
+<h4 class="date">2024-05-13</h4>
 
 </div>
 
 
 <div id="simulation" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Simulation</h1>
-<div id="data-contamination" class="section level2" number="1.1">
-<h2><span class="header-section-number">1.1</span> Data
+<div id="training-data-summary" class="section level2" number="1.1">
+<h2><span class="header-section-number">1.1</span> Training data
+summary</h2>
+<pre><code>## 
+##      0      1 
+## 293088 206912</code></pre>
+<pre><code>## 
+##        0        1 
+## 0.586176 0.413824</code></pre>
+<pre><code>## [1] 0.290712</code></pre>
+<p><img src="ProgressReport_files/figure-html/unnamed-chunk-2-1.png" width="768" /></p>
+</div>
+<div id="model-overfit" class="section level2" number="1.2">
+<h2><span class="header-section-number">1.2</span> Model overfit</h2>
+<div id="incidentdynamic-auc" class="section level3" number="1.2.1">
+<h3><span class="header-section-number">1.2.1</span> Incident/Dynamic
+AUC</h3>
+<p><img src="ProgressReport_files/figure-html/fig_tv_auc_noise-1.png" width="864" /></p>
+</div>
+<div id="spread-of-incidentdynamic-auc" class="section level3"
+number="1.2.2">
+<h3><span class="header-section-number">1.2.2</span> Spread of
+Incident/Dynamic AUC</h3>
+<ul>
+<li>with the continuous censoring distribution, at some cases the
+non-parametric values ended up as NA. Also, The semi-parametric when can
+go over (0, 1) range.</li>
+</ul>
+<pre><code>## Warning: Removed 146 rows containing non-finite outside the scale range
+## (`stat_boxplot()`).</code></pre>
+<p><img src="ProgressReport_files/figure-html/fig_tvauc_box_ovefit-1.png" width="864" /></p>
+</div>
+<div id="concordance" class="section level3" number="1.2.3">
+<h3><span class="header-section-number">1.2.3</span> Concordance</h3>
+<p><img src="ProgressReport_files/figure-html/fig_c_noise-1.png" width="1440" /></p>
+</div>
+</div>
+<div id="data-contamination" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Data
 contamination</h2>
 <ul>
 <li>Data contamination is introduced by adding outliers to test datasets
@@ -261,38 +298,22 @@ contamination</h2>
 <li>10% contaminated subjects, N(5, 1)</li>
 <li>10% contaminated subjects, N(0, 5)</li>
 </ol>
-<div id="incidentdynamic-auc" class="section level3" number="1.1.1">
-<h3><span class="header-section-number">1.1.1</span> Incident/Dynamic
+<div id="incidentdynamic-auc-1" class="section level3" number="1.3.1">
+<h3><span class="header-section-number">1.3.1</span> Incident/Dynamic
 AUC</h3>
 <p><img src="ProgressReport_files/figure-html/fig_tv_auc_contam-1.png" width="864" /></p>
 </div>
-<div id="spread-of-incidentdynamic-auc" class="section level3"
-number="1.1.2">
-<h3><span class="header-section-number">1.1.2</span> Spread of
+<div id="spread-of-incidentdynamic-auc-1" class="section level3"
+number="1.3.2">
+<h3><span class="header-section-number">1.3.2</span> Spread of
 Incident/Dynamic AUC</h3>
+<pre><code>## Warning: Removed 87 rows containing non-finite outside the scale range
+## (`stat_boxplot()`).</code></pre>
 <p><img src="ProgressReport_files/figure-html/fig_tvauc_box_contam-1.png" width="1152" /></p>
 </div>
-<div id="concordance" class="section level3" number="1.1.3">
-<h3><span class="header-section-number">1.1.3</span> Concordance</h3>
+<div id="concordance-1" class="section level3" number="1.3.3">
+<h3><span class="header-section-number">1.3.3</span> Concordance</h3>
 <p><img src="ProgressReport_files/figure-html/fig_c_contam-1.png" width="1440" /></p>
-</div>
-</div>
-<div id="model-overfit" class="section level2" number="1.2">
-<h2><span class="header-section-number">1.2</span> Model overfit</h2>
-<div id="incidentdynamic-auc-1" class="section level3" number="1.2.1">
-<h3><span class="header-section-number">1.2.1</span> Incident/Dynamic
-AUC</h3>
-<p><img src="ProgressReport_files/figure-html/fig_tv_auc_noise-1.png" width="864" /></p>
-</div>
-<div id="spread-of-incidentdynamic-auc-1" class="section level3"
-number="1.2.2">
-<h3><span class="header-section-number">1.2.2</span> Spread of
-Incident/Dynamic AUC</h3>
-<p><img src="ProgressReport_files/figure-html/fig_tvauc_box_ovefit-1.png" width="864" /></p>
-</div>
-<div id="concordance-1" class="section level3" number="1.2.3">
-<h3><span class="header-section-number">1.2.3</span> Concordance</h3>
-<p><img src="ProgressReport_files/figure-html/fig_c_noise-1.png" width="1440" /></p>
 </div>
 </div>
 </div>
@@ -303,7 +324,7 @@ Incident/Dynamic AUC</h3>
 </div>
 <div id="summary-table" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> Summary table</h1>
-<table class="table" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<table class="table" style="color: black; width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:left;">

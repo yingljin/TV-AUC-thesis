@@ -19,7 +19,7 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2",
 
 
 # set the seed
-set.seed(512)
+set.seed(513)
 
 
 # helper functions
@@ -41,7 +41,9 @@ p <- 3
 # result container
 auc_lst <- list()
 c_lst <- list()
-data_lst <- list()
+train_lst <- list()
+# test_lst <- list()
+
 ##### simulation ####
 
 # set up: 
@@ -53,20 +55,23 @@ data_lst <- list()
 
 iter <- 1
 
-pb <- txtProgressBar(min=0, max=M,style=3)
+pb <- txtProgressBar(min=0, max=M, style=3)
+t1 <- Sys.time()
 while(iter <= M){
   
   # generate data
   X  <- matrix(rnorm(N*3), ncol=p, nrow=N) # true covariates
   data <- gen_St(eta=X %*% Beta, lambda=2, p=2, 
-                 gen_Ct = function(N){
-                   sample(c(0.5, 1), size = N, replace = T)})
+                 gen_Ct = function(N){runif(N, 0, 1)})
   data <- rename(data, true_eta = eta)
   data$X <- I(X)
-  data_lst[[iter]] <- data
+  # data_lst[[iter]] <- data
+  
+  # training data
+  data_train <- data[1:N_obs,]
+  train_lst[[iter]] <- data_train
   
   # test data 0: no outlier
-  data_train <- data[1:N_obs,]
   data_test  <- data[-c(1:N_obs),]
   
   # test data 1: 10% outlier, mean change
@@ -157,7 +162,31 @@ while(iter <= M){
     iter <- iter+1
 }
 
+close(pb)
+t2 <- Sys.time()
+
+t2-t1
+#### check results ####
+
+length(auc_lst)
+
+# trend of TV-AUC estimates (smoothed)
+bind_rows(auc_lst, .id="iter") %>%
+  # left_join(true_auc_df, by = "time") %>% 
+  pivot_longer(3:5, names_to = "estimator", values_to = "AUC") %>%
+  ggplot(aes(x=time, y=AUC, col=outlier, linetype = sample))+
+  geom_smooth(se = F, formula = y~s(x, k=30, bs = "cs"), na.rm = T,
+              method = "gam")+
+  # geom_line(aes(x = time, y = true_auc), na.rm = T, col = "red", show.legend = F)+
+  labs(x="time", y = "AUC")+
+  theme(text = element_text(size = 15), axis.text = element_text(size = 10))+
+  facet_wrap(~estimator)+
+  scale_colour_manual(values=cbPalette)
 
 #### Results ####
+auc_lst2 <- auc_lst
+c_lst2 <- c_lst
+train_list2 <- train_lst
 
-save(auc_lst, c_lst, file = here("Data/SimContamData.RData"))
+save(auc_lst2, c_lst2, file = here("Data/SimContamData.RData"))
+save(train_list2, file = here("Data/SimContamTrainData.RData"))
