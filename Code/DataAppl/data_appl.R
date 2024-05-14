@@ -31,6 +31,11 @@ df_analysis_subj <- df_analysis_subj %>%
   mutate_at(vars(ASTP_mean, RA_MIMS_mean, age_years_interview,
                  BMI, TMIMS_mean), scale)
 
+df_analysis_subj[, 3:7] %>% cor() %>% abs() %>% sort()
+table(df_analysis_subj$mortstat)
+424/200
+# correlation: 0.051-0.8
+
 ##### source code #####
 
 # helper functions
