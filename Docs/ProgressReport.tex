@@ -71,7 +71,7 @@
 \ifLuaTeX
   \usepackage{selnolig}  % disable illegal ligatures
 \fi
-\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\usepackage{bookmark}
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
 \urlstyle{same}
 \hypersetup{
@@ -82,7 +82,7 @@
 
 \title{Progress Report}
 \author{Ying Jin}
-\date{2023-05-12}
+\date{2024-05-15}
 
 \begin{document}
 \maketitle
@@ -91,51 +91,65 @@
 \setcounter{tocdepth}{3}
 \tableofcontents
 }
-\hypertarget{visualization-of-weigts-in-incident-sensitivity}{%
-\section{Visualization of weigts in Incident
-sensitivity}\label{visualization-of-weigts-in-incident-sensitivity}}
+\section{Simulation}\label{simulation}
 
-\hypertarget{model-overfit}{%
-\subsection{Model overfit}\label{model-overfit}}
+\subsection{Training data summary}\label{training-data-summary}
 
 \begin{verbatim}
-## # A tibble: 30 x 6
-## # Groups:   sample, model [6]
-##    tid   weight  time model    tbin      sample   
-##    <chr>  <dbl> <dbl> <fct>    <fct>     <chr>    
-##  1 X51    0.229 0.665 No noise (0.6,0.7] In-sample
-##  2 X43    0.221 0.665 No noise (0.6,0.7] In-sample
-##  3 X141   0.209 0.664 No noise (0.6,0.7] In-sample
-##  4 X40    0.200 0.655 No noise (0.6,0.7] In-sample
-##  5 X19    0.197 0.646 No noise (0.6,0.7] In-sample
-##  6 X117   0.225 0.977 20 noise (0.9,1]   In-sample
-##  7 X51    0.215 0.665 20 noise (0.6,0.7] In-sample
-##  8 X43    0.209 0.665 20 noise (0.6,0.7] In-sample
-##  9 X141   0.201 0.664 20 noise (0.6,0.7] In-sample
-## 10 X136   0.197 0.963 20 noise (0.9,1]   In-sample
-## # i 20 more rows
+## 
+##      0      1 
+## 293088 206912
 \end{verbatim}
 
-\includegraphics{ProgressReport_files/figure-latex/boxp_wt_noise-1.pdf}
+\begin{verbatim}
+## 
+##        0        1 
+## 0.586176 0.413824
+\end{verbatim}
 
-\hypertarget{data-contamination}{%
-\subsection{Data contamination}\label{data-contamination}}
+\begin{verbatim}
+## [1] 0.290712
+\end{verbatim}
 
-\includegraphics{ProgressReport_files/figure-latex/boxp_wt_contam-1.pdf}
+\includegraphics{ProgressReport_files/figure-latex/SimDataDensity-1.pdf}
 
-\hypertarget{simulation-with-contaminated-data}{%
-\section{Simulation with contaminated
-data}\label{simulation-with-contaminated-data}}
+\subsection{Model overfit}\label{model-overfit}
+
+\subsubsection{Incident/Dynamic AUC}\label{incidentdynamic-auc}
+
+\includegraphics{ProgressReport_files/figure-latex/fig_tv_auc_noise-1.pdf}
+
+\subsubsection{Spread of Incident/Dynamic
+AUC}\label{spread-of-incidentdynamic-auc}
 
 \begin{itemize}
 \tightlist
 \item
-  Introduce outliers to test datasets (not noise in the model)
+  with the continuous censoring distribution, at some cases the
+  non-parametric values ended up as NA. Also, The semi-parametric when
+  can go over (0, 1) range.
+\end{itemize}
+
+\begin{verbatim}
+## Warning: Removed 146 rows containing non-finite outside the scale range
+## (`stat_boxplot()`).
+\end{verbatim}
+
+\includegraphics{ProgressReport_files/figure-latex/fig_tvauc_box_ovefit-1.pdf}
+
+\subsubsection{Concordance}\label{concordance}
+
+\includegraphics{ProgressReport_files/figure-latex/fig_c_noise-1.pdf}
+
+\subsection{Data contamination}\label{data-contamination}
+
+\begin{itemize}
+\tightlist
 \item
-  Modified from last time: instead of arbitrarily change covariate
-  value, generate from different random distributions instead
+  Data contamination is introduced by adding outliers to test datasets
+  (not noise in the model)
 \item
-  Within each simulation, two scenarios:
+  Within each simulation, we investiage two scenarios:
 \end{itemize}
 
 \begin{enumerate}
@@ -147,79 +161,34 @@ data}\label{simulation-with-contaminated-data}}
   10\% contaminated subjects, N(0, 5)
 \end{enumerate}
 
-\begin{itemize}
-\tightlist
-\item
-  Some unexpected coding issue: couldn't find old.alpha parameter in
-  scam function (bfgs\_gcv.ubre). Needed to reduce k (k=10).
-\end{itemize}
-
-\hypertarget{tv-auc}{%
-\subsection{TV-AUC}\label{tv-auc}}
+\subsubsection{Incident/Dynamic AUC}\label{incidentdynamic-auc-1}
 
 \includegraphics{ProgressReport_files/figure-latex/fig_tv_auc_contam-1.pdf}
 
-\hypertarget{spread-of-tv-auc}{%
-\subsection{Spread of TV-AUC}\label{spread-of-tv-auc}}
+\subsubsection{Spread of Incident/Dynamic
+AUC}\label{spread-of-incidentdynamic-auc-1}
 
-Do we have alternative ways to present the instability of TV-AUC
-estimates? Perhaps remove the figures but only use specific examples:
+\begin{verbatim}
+## Warning: Removed 87 rows containing non-finite outside the scale range
+## (`stat_boxplot()`).
+\end{verbatim}
 
 \includegraphics{ProgressReport_files/figure-latex/fig_tvauc_box_contam-1.pdf}
 
-\hypertarget{concordance}{%
-\subsection{Concordance}\label{concordance}}
+\subsubsection{Concordance}\label{concordance-1}
 
 \includegraphics{ProgressReport_files/figure-latex/fig_c_contam-1.pdf}
 
-\hypertarget{simulation-with-noise-signals}{%
-\section{Simulation with noise
-signals}\label{simulation-with-noise-signals}}
-
-\hypertarget{tv-auc-1}{%
-\subsection{TV-AUC}\label{tv-auc-1}}
-
-\includegraphics{ProgressReport_files/figure-latex/fig_tv_auc_noise-1.pdf}
-
-\hypertarget{spread-of-tv-auc-1}{%
-\subsection{Spread of TV-AUC}\label{spread-of-tv-auc-1}}
-
-\includegraphics{ProgressReport_files/figure-latex/fig_tvauc_box_ovefit-1.pdf}
-
-\hypertarget{concordance-1}{%
-\subsection{Concordance}\label{concordance-1}}
-
-\includegraphics{ProgressReport_files/figure-latex/fig_c_noise-1.pdf}
-
-\hypertarget{data-application}{%
-\section{Data Application}\label{data-application}}
+\section{Case Study}\label{case-study}
 
 \includegraphics{ProgressReport_files/figure-latex/appl_auc-1.pdf}
 
 \includegraphics{ProgressReport_files/figure-latex/appl_c-1.pdf}
+\includegraphics{ProgressReport_files/figure-latex/auc_t_scatter-1.pdf}
 
-\hypertarget{summary-table}{%
-\section{Summary table}\label{summary-table}}
+\section{Summary table}\label{summary-table}
 
-\begin{verbatim}
-## Warning in !is.null(rmarkdown::metadata$output) && rmarkdown::metadata$output
-## %in% : 'length(x) = 2 > 1' in coercion to 'logical(1)'
-\end{verbatim}
-
-\begin{verbatim}
-## 
-## Attaching package: 'kableExtra'
-\end{verbatim}
-
-\begin{verbatim}
-## The following object is masked from 'package:dplyr':
-## 
-##     group_rows
-\end{verbatim}
-
-\begin{table}
-\centering
-\begin{tabular}{llll}
+\begin{longtable}[t]{llll}
 \toprule
 Estimator & Bias & Variavility & Out-of-sample behavior\\
 \midrule
@@ -238,25 +207,23 @@ Estimator & Bias & Variavility & Out-of-sample behavior\\
 \hspace{1em}Smoothed non-parametric & Unbiased & Low & Appropriate\\
 \hspace{1em}Harrell & Biased upwards & Low & Appropriate\\
 \bottomrule
-\end{tabular}
-\end{table}
+\end{longtable}
 
-\hypertarget{main-text}{%
-\subsection{Main text}\label{main-text}}
+\section{Appendix}\label{appendix}
 
 \begin{itemize}
 \tightlist
 \item
-  Figure 1: outlier example
-\item
-  Figure 2: Simulation case overfit: a.time-varying AUC; b.concordance
-\item
-  Figure 3: Simulation case contamination: a. time-varying AUC;
-  b.concordance
-\item
-  Figure 4: Sensitivity weights: a. overfit; b.contamination
-\item
-  Figure 5: Data application results: a. tv-auc; b. concordance
+  Use one simulated dataset to investigate the weight estimates used in
+  the Heagerty-Zheng estimator of Incident/Dynamic AUC
 \end{itemize}
+
+\subsection{Model overfit}\label{model-overfit-1}
+
+\includegraphics{ProgressReport_files/figure-latex/boxp_wt_noise-1.pdf}
+
+\subsection{Data contamination}\label{data-contamination-1}
+
+\includegraphics{ProgressReport_files/figure-latex/boxp_wt_contam-1.pdf}
 
 \end{document}

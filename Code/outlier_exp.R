@@ -119,13 +119,7 @@ data_plt$Estimator <- "Semi-parametric"
 data_plt %>% 
     ggplot() + 
     geom_line(aes(x=FP, y=TP, color=Model)) + 
-    theme_bw() +
-    geom_text(data=data_text, mapping = aes(x = xind, y =yind, label = label,color=Model)) + 
-    xlab("False Positive Rate") + ylab("True Positive Rate")+
-    labs(col="Data")+
-  scale_color_manual(values = cbPalette)+
-  theme(text=element_text(size=15),
-        axis.text = element_text(size=10))
+    theme_bw() 
 
 
 ##### Non parametric ROC #####
@@ -226,4 +220,14 @@ bind_rows(data_plt, data_plt2) %>%
 ggsave(filename="Code/outlier_exp.png",
        width=8, height=4, bg="white", dpi = 300)
 
+
+#### Weights ####
+
+data_test %>% filter(time >= ti) %>% 
+  mutate(wt = exp(eta1)/sum(exp(eta1))) %>% select(wt) %>% summary() # at most 0.028
+
+data_test2 %>% filter(time >= ti) %>% 
+  mutate(wt = exp(eta1)/sum(exp(eta1))) %>% select(wt) %>% arrange(desc(wt)) %>% head() %>% mutate(wt=100*wt)
+
+# at most 0.9999, the second largest is 1.8e-06
 

@@ -53,7 +53,7 @@ load(here("Data/SimContamTrainData.RData"))
 ```
 
 
-```{r, class.source='fold-show', fig.width=8, fig.height=3}
+```{r SimDataDensity, class.source='fold-show', fig.width=8, fig.height=3}
 all_train_data <- bind_rows(bind_rows(train_list), bind_rows(train_list2))
 
 # proportion of event and censoring
@@ -67,9 +67,9 @@ median(all_train_data$time[all_train_data$event==1])
 all_train_data %>%
   mutate(event=ifelse(event==0, "Censor", "Event")) %>%
   ggplot()+
-  geom_histogram(aes(x=time), bins=50)+
+  geom_histogram(aes(x=time, y=after_stat(ndensity)), bins=50)+
   facet_wrap(~event)+
-  labs(x="Time", y= "Count")
+  labs(x="Time", y= "Density")
   
 ```
 
@@ -186,12 +186,12 @@ c_df2 <- bind_rows(c_lst2)
 ```
 
 
-```{r true_vals, eval=FALSE}
+```{r true_vals}
 load(here("Data/true_values.RData"))
 
 # use interpolation to estimate AUC on simulated time series
 true_auc_df <- approx(x = true_auc_sort$time_bin, y = true_auc_sort$auc, 
-                       xout = unique(tv_auc_df$time))
+                       xout = unique(tv_auc_df2$time))
 true_auc_df <- data.frame(true_auc_df) %>% 
   rename("time" = x, "true_auc" = y)
 ```
@@ -325,6 +325,18 @@ appl_c%>%
   scale_fill_manual(values = cbPalette)+
   scale_color_manual(values = cbPalette)
 ```
+```{r auc_t_scatter, fig.width=10, fig.height=3}
+appl_auc %>% filter(sample == "In-sample") %>%
+  mutate(iter=factor(iter, levels = 1:10)) %>%
+  ggplot(aes(x=time, y=AUC, color = iter))+
+  geom_point(size = 0.5, alpha = 0.8)+
+  facet_wrap(~Estimator, nrow = 1)+
+  labs(x = "Time", y = "AUC", color = "Fold")  +
+  scale_color_manual(values =  c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
+                                 "#0072B2", "#D55E00", "#CC79A7", "#44AA99", "#88CCEE")
+)
+```
+
 
 # Summary table 
 
