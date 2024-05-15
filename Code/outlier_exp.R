@@ -101,7 +101,7 @@ roc_HZ05_eta_fake <- CoxWeights(marker=data_test2$eta1, Stime=data_test2$time,
 # transform the data to ggplot friendly format
 data_plt <- data.frame("Estimator" = paste0("Haegerty and Zheng 2005: t = ", round(ti,2)), 
                           "Model" = c(rep("Original data", length(roc_HZ05_eta1$FP)),
-                                      rep("Original data with 1 Outlier", length(roc_HZ05_eta_fake$FP))),
+                                      rep("Original data with 1 outlier", length(roc_HZ05_eta_fake$FP))),
                           "TP" = c(roc_HZ05_eta1$TP,roc_HZ05_eta_fake$TP), 
                           "FP" = c(roc_HZ05_eta1$FP,roc_HZ05_eta_fake$FP))
 
@@ -109,11 +109,11 @@ data_plt$Estimator <- "Semi-parametric"
 
 
 # separate data frame for adding text to the plot (estimated AUC)
-data_text <- data.frame("Estimator" = rep(paste0("Haegerty and Zheng 2005: t = ", round(ti,2)),2),
-                        "Model" = c("Original data", "Original data with 1 Outlier"), 
-                        "label" = paste0("AUC = ",round(c(roc_HZ05_eta1$AUC, roc_HZ05_eta_fake$AUC),3)),
-                        "xind" = rep(0.75, 2),
-                        "yind" = c(0.15,0.25))
+# data_text <- data.frame("Estimator" = rep(paste0("Haegerty and Zheng 2005: t = ", round(ti,2)),2),
+#                         "Model" = c("Original data", "Original data with 1 Outlier"), 
+#                         "label" = paste0("AUC = ",round(c(roc_HZ05_eta1$AUC, roc_HZ05_eta_fake$AUC),3)),
+#                         "xind" = rep(0.75, 2),
+#                         "yind" = c(0.15,0.25))
 
 
 data_plt %>% 
@@ -165,7 +165,7 @@ for(i in seq_along(uni_eta2)){
 # transform the data to ggplot friendly format
 data_plt2 <- data.frame("Estimator" = "Non-parametric", 
                        "Model" = c(rep("Original data", length(np_sens1)),
-                                   rep("Original data with 1 Outlier", length(np_sens2))),
+                                   rep("Original data with 1 outlier", length(np_sens2))),
                        "TP" = c(np_sens1, np_sens2), 
                        "FP" = c(1-np_spec1, 1-np_spec2))
 #### Plot ####
@@ -195,25 +195,31 @@ ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
 
 
 
-data_text <- data.frame("Estimator" = "Semi-parametric",
-                        "Model" = c("Original data", "Original data with 1 Outlier"), 
-                        "label" = paste0("AUC = ",round(c(roc_HZ05_eta1$AUC, roc_HZ05_eta_fake$AUC),3)),
-                        "xind" = rep(0.75, 2),
-                        "yind" = c(0.15,0.25))
+data_text <- data.frame("Estimator" = rep(c("Semi-parametric", "Non-parametric"), each = 2),
+                        "Model" = rep(c("Original data", "Original data with 1 outlier"), 2),
+                        "label" = paste0("AUC = ",round(c(roc_HZ05_eta1$AUC, 
+                                                          roc_HZ05_eta_fake$AUC,
+                                                          ID_AUC(data_test$eta1, data_test$time, data_test$event, ti),
+                                                          ID_AUC(data_test2$eta1, data_test2$time, data_test2$event, ti)),3)),
+                        "xind" = rep(0.75, 4),
+                        "yind" = rep(c(0.15,0.25), 2))
 
 
 ID_AUC(data_test$eta1, data_test$time, data_test$event, ti)
 ID_AUC(data_test2$eta1, data_test2$time, data_test2$event, ti)
 
 bind_rows(data_plt, data_plt2) %>% 
-  ggplot(aes(x=FP, y=TP, col = Model))+
+  # mutate(Estimator=relevel(as.factor(Estimator), ref = "Semi-parametric"), 
+  #        Model=relevel(as.factor(Model), ref = "Original data with 1 outlier")) %>%
+  ggplot(aes(x=FP, y=TP, col = Model, linetype = Model))+
   geom_line()+
   facet_wrap(~Estimator)+
   theme_bw() +
-  # geom_text(data=data_text, mapping = aes(x = xind, y =yind, label = label,color=Model)) + 
+  geom_text(data=data_text, mapping = aes(x = xind, y =yind, label = label,color = Model)) + 
   xlab("False Positive Rate") + ylab("True Positive Rate")+
-  labs(col="Data")+
-  scale_color_manual(values = cbPalette)+
+  labs(col="Data", linetype = NA)+
+  scale_color_manual(values = c("#999999", "#E69F00"))+
+  scale_linetype_manual(values = c("dashed", "solid"), guide = "none")+
   theme(text=element_text(size=15),
         axis.text = element_text(size=10),
         legend.position = "bottom")
@@ -221,37 +227,3 @@ ggsave(filename="Code/outlier_exp.png",
        width=8, height=4, bg="white", dpi = 300)
 
 
-plot(1-np_spec2, np_sens2)
-points(1-np_spec1, np_sens1, col = "red")
-
-ID_AUC <- function(marker, Stime, status, predict.time, entry = NULL, ...){
-  if (length(entry) == 0) {
-    entry = rep(0, NROW(Stime))
-  }
-  at.risk <- ((Stime >= predict.time) & (entry <= predict.time))
-  eta     <- marker[at.risk]
-  status2 <- status
-  status2[Stime > predict.time] <- 0
-  status2 <- status2[at.risk]
-  
-  C_num <- 0
-  n_case_t    <- sum(status2)
-  n_control_t <- sum(1-status2)
-  inx_ti <- which(status2 == 1)
-  inx_tj <- which(status2 == 0)
-  for(id in inx_ti){
-    C_num <- C_num + sum(eta[id] > eta[inx_tj]) + 0.5*sum(eta[id] == eta[inx_tj])
-  }
-  out <- C_num/(n_case_t*n_control_t)
-  
-  out     
-}
-
-
-
-
-#### figure ####
-#ggsave(filename="Images/outlier_exp.pdf",
-#       width=7, height=4, bg="white", dpi = 300)
-
-gamma(1+1/2)/sqrt(2)
