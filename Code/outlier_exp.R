@@ -15,7 +15,7 @@ set.seed(102131)
 
 
 
-#### Function for simulating survival times ####
+#### Generate data ####
 # Weibull baseline hazard
 # eta: vector containing the log hazard (linear predictor) for each subject
 # lambda: scale parameter for the baseline hazard
@@ -32,7 +32,6 @@ gen_St <- function(eta, lambda, p, gen_Ct = function(N) pmin(1,rexp(N, 1/5)) ){
 }
 
 
-#### Simulate the data ###
 
 ## Number of subjects used to fit the model
 N_obs  <- 300
@@ -58,27 +57,29 @@ data$X <- I(X)
 data_train <- data[1:N_obs,]
 data_test  <- data[-c(1:N_obs),]
 mean(data$time[data$event==1])
+
+## duplicate the data set and introduce one outlier
+data_test2 <- data_test
+data_test2$X[500, ] <- 40*apply(data_test$X, 2, sd)
+
 #### Model fit #####
 
 ## fit model on training data
 fit_1 <- coxph(Surv(time, event) ~ X, data=data_train)
 
-## estimate risk score/linear predictor for the test data
+## estimate risk score/linear predictor for the test data sets
 data_test$eta1 <- as.vector(data_test$X %*% coef(fit_1))
 
+data_test2$eta1 <- as.vector(data_test2$X %*% coef(fit_1))
+data_test2$time[500] <- 0.85
+data_test2$event[500] <- 0
 
-#### Out-of-sample AUC ####
+
+#### Some quantities ####
 
 # fix time 
 ut_test <- unique(data_test$time[data_test$event==1])
 ti <- ut_test[50]
-
-# duplicate the data set and introduce one outlier
-data_test2 <- data_test
-data_test2$X[500, ] <- 40*apply(data_test$X, 2, sd)
-data_test2$eta1 <- as.vector(data_test2$X %*% coef(fit_1))
-data_test2$time[500] <- 0.85
-data_test2$event[500] <- 0
 
 # subjects at risk at t=0.27
 summary(survfit(Surv(time, event) ~ 1, data=data_test2))
@@ -91,13 +92,12 @@ est_log_hz <- predict(fit_1, newdata = data_test2)
 est_log_hz <- sort(est_log_hz)
 est_log_hz[500]/est_log_hz[499]
 
-# calculate AUC
+####  calculate AUC for no-outlier data #####
 roc_HZ05_eta1 <- CoxWeights(marker=data_test$eta1, Stime=data_test$time, 
                             status=data_test$event, predict.time=ti)
 roc_HZ05_eta_fake <- CoxWeights(marker=data_test2$eta1, Stime=data_test2$time, 
                             status=data_test2$event, predict.time=ti)
 
-#### Plot #####
 # transform the data to ggplot friendly format
 data_plt <- data.frame("Estimator" = paste0("Haegerty and Zheng 2005: t = ", round(ti,2)), 
                           "Model" = c(rep("Original data", length(roc_HZ05_eta1$FP)),
@@ -122,7 +122,7 @@ data_plt %>%
     theme_bw() 
 
 
-##### Non parametric ROC #####
+##### AUC for outlier data #####
 
 # at the specific time
 ## risk set
@@ -231,3 +231,21 @@ data_test2 %>% filter(time >= ti) %>%
 
 # at most 0.9999, the second largest is 1.8e-06
 
+##### Gonen and Heller #####
+
+eta1_vec <- sort(data_test$eta1)
+diff_eta1 <- outer(eta1_vec, eta1_vec,'-')
+diff_eta1 <- diff_eta1[upper.tri(diff_eta1, diag = T)]
+
+eta2_vec <- sort(data_test2$eta1)
+diff_eta2 <- outer(eta2_vec, eta2_vec,'-')
+diff_eta2 <- diff_eta2[upper.tri(diff_eta2, diag = T)]
+
+data.frame(diff = c(diff_eta1, diff_eta2),
+           data = rep(c("Original data", "Original data with 1 outlier"), each = length(diff_eta1))) %>%
+  mutate(wt = 1/(1+exp(diff))) %>%
+  ggplot(aes(x=diff, y=wt))+
+  geom_point()+
+  facet_wrap(~data)
+ggsave(filename="Code/outlier_gh.png",
+       width=8, height=4, bg="white", dpi = 300)
