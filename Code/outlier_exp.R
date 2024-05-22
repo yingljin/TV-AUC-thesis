@@ -75,7 +75,7 @@ data_test2$time[500] <- 0.85
 data_test2$event[500] <- 0
 
 
-#### Some quantities ####
+#### Some survival quantities ####
 
 # fix time 
 ut_test <- unique(data_test$time[data_test$event==1])
@@ -233,19 +233,66 @@ data_test2 %>% filter(time >= ti) %>%
 
 ##### Gonen and Heller #####
 
+library(clinfun)
+
+# function
+coxphCPE_eta <- function (betahat,Xmat){
+  n <- nrow(Xmat)
+  p <- length(betahat)
+  xbeta <- Xmat%*%betahat
+  bw <- 0.5 * sd(xbeta) * (n^(-1/3))
+  zzz <- .Fortran("cpesub", as.integer(n), as.integer(p), as.double(Xmat), 
+                  as.double(xbeta), as.double(bw), CPE = double(1), CPEsmooth = double(1), 
+                  varDeriv = double(p), uRowSum = double(n), uSSQ = double(1), 
+                  PACKAGE = "clinfun")
+  CPE <- 2 * zzz$CPE/(n * (n - 1))
+  return(CPE)
+}
+
+# GH concordance
+coxphCPE_eta(coef(fit_1), data_test$X) # 0.8005
+coxphCPE_eta(coef(fit_1), data_test2$X) # 0.8014
+
 eta1_vec <- sort(data_test$eta1)
 diff_eta1 <- outer(eta1_vec, eta1_vec,'-')
 diff_eta1 <- diff_eta1[upper.tri(diff_eta1, diag = T)]
+summary(diff_eta1)
+
 
 eta2_vec <- sort(data_test2$eta1)
 diff_eta2 <- outer(eta2_vec, eta2_vec,'-')
 diff_eta2 <- diff_eta2[upper.tri(diff_eta2, diag = T)]
+summary(diff_eta2)
 
+# some figures
 data.frame(diff = c(diff_eta1, diff_eta2),
            data = rep(c("Original data", "Original data with 1 outlier"), each = length(diff_eta1))) %>%
-  mutate(wt = 1/(1+exp(diff))) %>%
-  ggplot(aes(x=diff, y=wt))+
-  geom_point()+
-  facet_wrap(~data)
+  mutate(diff=abs(diff)) %>%
+  ggplot(aes(x=diff, y=after_stat(ndensity)))+
+  geom_histogram(bins = 50)+
+  facet_wrap(~data)+
+  labs(x="Abosolute difference of risk scroe between a pair of subjects",
+       y = "Density")
+  # geom_density(alpha = 0.2)
 ggsave(filename="Code/outlier_gh.png",
        width=8, height=4, bg="white", dpi = 300)
+
+# figure of weight vs diff in risk score
+data.frame(diff = seq(0, 20, length.out = 500)) %>% 
+  mutate(wt = 1/(1+exp(-diff))) %>%
+  ggplot(aes(x=diff, y=wt))+
+  geom_point()+
+  labs(x="Abosolute difference of risk scroe between a pair of subjects",
+       y = "Weight")
+ggsave(filename="Code/wt_gh.png",
+       width=4, height=4, bg="white", dpi = 300)
+
+# figure of weight in incident sensitivity
+data.frame(eta = seq(0, 20, length.out = 500)) %>% 
+  mutate(wt = exp(eta)) %>%
+  ggplot(aes(x=eta, y=wt))+
+  geom_point()+
+  labs(x="Estimated risk scroe of one subject",
+       y = "Weight")
+ggsave(filename="Code/wt_Isens.png",
+       width=4, height=4, bg="white", dpi = 300)
