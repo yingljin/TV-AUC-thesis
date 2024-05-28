@@ -206,10 +206,11 @@ bind_rows(data_plt, data_plt2) %>%
   # mutate(Estimator=relevel(as.factor(Estimator), ref = "Semi-parametric"), 
   #        Model=relevel(as.factor(Model), ref = "Original data with 1 outlier")) %>%
   ggplot(aes(x=FP, y=TP, col = Model, linetype = Model))+
-  geom_line()+
+  geom_line(size = 1.5, alpha = 0.5)+
   facet_wrap(~Estimator)+
-  theme_bw() +
-  geom_text(data=data_text, mapping = aes(x = xind, y =yind, label = label,color = Model)) + 
+  theme_minimal() +
+  geom_text(data=data_text, mapping = aes(x = xind, y =yind, label = label,color = Model), 
+            show.legend = F) + 
   xlab("False Positive Rate") + ylab("True Positive Rate")+
   labs(col="Data", linetype = NA)+
   scale_color_manual(values = c("#999999", "#E69F00"))+
