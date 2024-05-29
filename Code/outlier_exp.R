@@ -265,35 +265,56 @@ diff_eta2 <- outer(eta2_vec, eta2_vec,'-')
 diff_eta2 <- diff_eta2[upper.tri(diff_eta2, diag = T)]
 summary(diff_eta2)
 
-# some figures
+# some figures regarding GH estimator
+## Histogram of difference
 data.frame(diff = c(diff_eta1, diff_eta2),
            data = rep(c("Original data", "Original data with 1 outlier"), each = length(diff_eta1))) %>%
   mutate(diff=abs(diff)) %>%
   ggplot(aes(x=diff, y=after_stat(ndensity)))+
   geom_histogram(bins = 50)+
   facet_wrap(~data)+
-  labs(x="Abosolute difference of risk scroe between a pair of subjects",
+  labs(x="Abosolute difference of risk score between a pair of subjects",
        y = "Density")
   # geom_density(alpha = 0.2)
-ggsave(filename="Code/outlier_gh.png",
+ggsave(filename="Code/outlier_gh_hist.png",
        width=8, height=4, bg="white", dpi = 300)
 
-# figure of weight vs diff in risk score
-data.frame(diff = seq(0, 20, length.out = 500)) %>% 
-  mutate(wt = 1/(1+exp(-diff))) %>%
-  ggplot(aes(x=diff, y=wt))+
-  geom_point()+
-  labs(x="Abosolute difference of risk scroe between a pair of subjects",
-       y = "Weight")
-ggsave(filename="Code/wt_gh.png",
+## boxplot of difference
+data.frame(diff = c(diff_eta1, diff_eta2),
+           data = rep(c("Original data", "Original data with 1 outlier"), each = length(diff_eta1))) %>%
+  mutate(diff=abs(diff)) %>% 
+  ggplot(aes(x=data, y= diff))+
+  geom_boxplot(outlier.size = 0.5)+
+  # geom_jitter(size = 0.2)+
+  labs(x="Absolute difference of pairwise risk scores",
+       y = "")
+ggsave(filename="Code/outlier_gh_box.png",
        width=4, height=4, bg="white", dpi = 300)
 
-# figure of weight in incident sensitivity
-data.frame(eta = seq(0, 20, length.out = 500)) %>% 
-  mutate(wt = exp(eta)) %>%
-  ggplot(aes(x=eta, y=wt))+
-  geom_point()+
-  labs(x="Estimated risk scroe of one subject",
-       y = "Weight")
-ggsave(filename="Code/wt_Isens.png",
+## boxplot of contribution
+data.frame(diff = c(diff_eta1, diff_eta2),
+           data = rep(c("Original data", "Original data with 1 outlier"), each = length(diff_eta1))) %>%
+  mutate(diff=abs(diff)) %>% 
+  mutate(wt = 1/(1+exp(-diff))) %>% 
+  ggplot(aes(x=data, y= wt))+
+  geom_boxplot(outlier.size = 0.5)+
+  # geom_jitter(size = 0.2)+
+  labs(x="Contribution to the Gonen-Heller estimator from each pair of subjects",
+       y = "")
+ggsave(filename="Code/outlier_gh_box2.png",
        width=4, height=4, bg="white", dpi = 300)
+
+
+## histgram of contribution
+data.frame(diff = c(diff_eta1, diff_eta2),
+           data = rep(c("Original data", "Original data with 1 outlier"), each = length(diff_eta1))) %>%
+  mutate(diff=abs(diff)) %>% 
+  mutate(wt = 1/(1+exp(-diff))) %>% 
+  ggplot(aes(x=wt, y=after_stat(ndensity)))+
+  geom_histogram(bins = 50)+
+  facet_wrap(~data)+
+  labs(x="Contribution to the Gonen-Heller estimator from each pair of subjects",
+       y = "Density")
+ggsave(filename="Code/outlier_gh_hist2.png",
+       width=8, height=4, bg="white", dpi = 300)
+
