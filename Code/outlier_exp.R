@@ -62,6 +62,12 @@ mean(data$time[data$event==1])
 data_test2 <- data_test
 data_test2$X[500, ] <- 40*apply(data_test$X, 2, sd)
 
+## subjects at risk at ti
+sum(data_train$time>=ti)
+sum(data_test$time>=ti)
+sum(data_test2$time>=ti)
+ti
+
 #### Model fit #####
 
 ## fit model on training data
@@ -131,6 +137,7 @@ risk_set2 <- data_test2 %>% filter(time>= ti)
 ## unique risk iscore
 uni_eta1 <- unique(risk_set1$eta1)
 uni_eta2 <- unique(risk_set2$eta1)
+sort(uni_eta2)[365]/sort(uni_eta2)[364]
 
 # sens and spec of test set without outlier
 np_sens1 <- np_spec1 <- rep(NA, length(uni_eta1))
@@ -224,6 +231,8 @@ ggsave(filename="Code/outlier_exp.png",
 
 #### Weights ####
 
+
+
 data_test %>% filter(time >= ti) %>% 
   mutate(wt = exp(eta1)/sum(exp(eta1))) %>% select(wt) %>% summary() # at most 0.028
 
@@ -286,8 +295,7 @@ data.frame(diff = c(diff_eta1, diff_eta2),
   ggplot(aes(x=data, y= diff))+
   geom_boxplot(outlier.size = 0.5)+
   # geom_jitter(size = 0.2)+
-  labs(x="Absolute difference of pairwise risk scores",
-       y = "")
+  labs(y="Absolute difference of pairwise risk scores", x="")
 ggsave(filename="Code/outlier_gh_box.png",
        width=4, height=4, bg="white", dpi = 300)
 

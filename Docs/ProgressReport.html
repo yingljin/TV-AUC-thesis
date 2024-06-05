@@ -11,7 +11,7 @@
 
 <meta name="author" content="Ying Jin" />
 
-<meta name="date" content="2024-05-15" />
+<meta name="date" content="2024-06-05" />
 
 <title>Progress Report</title>
 
@@ -242,7 +242,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Progress Report</h1>
 <h4 class="author">Ying Jin</h4>
-<h4 class="date">2024-05-15</h4>
+<h4 class="date">2024-06-05</h4>
 
 </div>
 
@@ -286,12 +286,12 @@ go over (0, 1) range.</li>
 <p><img src="ProgressReport_files/figure-html/fig_c_noise-1.png" width="1440" /></p>
 </div>
 </div>
-<div id="data-contamination" class="section level2" number="1.3">
-<h2><span class="header-section-number">1.3</span> Data
-contamination</h2>
+<div id="covariate-misalignment" class="section level2" number="1.3">
+<h2><span class="header-section-number">1.3</span> Covariate
+misalignment</h2>
 <ul>
-<li>Data contamination is introduced by adding outliers to test datasets
-(not noise in the model)</li>
+<li>Covariate misalignment is introduced by adding misaligned covariate
+to test datasets (not noise in the model)</li>
 <li>Within each simulation, we investiage two scenarios:</li>
 </ul>
 <ol style="list-style-type: decimal">
@@ -320,8 +320,24 @@ Incident/Dynamic AUC</h3>
 <div id="case-study" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Case Study</h1>
 <p><img src="ProgressReport_files/figure-html/appl_auc-1.png" width="960" /></p>
-<p><img src="ProgressReport_files/figure-html/appl_c-1.png" width="960" />
-<img src="ProgressReport_files/figure-html/auc_t_scatter-1.png" width="960" /></p>
+<p><img src="ProgressReport_files/figure-html/appl_c-1.png" width="960" /></p>
+<pre><code>## `summarise()` has grouped output by &#39;estimator&#39;. You can override using the
+## `.groups` argument.</code></pre>
+<pre><code>## # A tibble: 10 × 3
+## # Groups:   estimator [5]
+##    estimator model mean_c
+##    &lt;fct&gt;     &lt;fct&gt;  &lt;dbl&gt;
+##  1 HZ        LCM    0.741
+##  2 HZ        ACM    0.877
+##  3 GH        LCM    0.710
+##  4 GH        ACM    0.785
+##  5 Harrell   LCM    0.745
+##  6 Harrell   ACM    0.683
+##  7 NP        LCM    0.768
+##  8 NP        ACM    0.712
+##  9 SNP       LCM    0.755
+## 10 SNP       ACM    0.699</code></pre>
+<p><img src="ProgressReport_files/figure-html/auc_t_scatter-1.png" width="960" /></p>
 </div>
 <div id="summary-table" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> Summary table</h1>
@@ -483,7 +499,7 @@ in the Heagerty-Zheng estimator of Incident/Dynamic AUC</li>
 <h2><span class="header-section-number">4.1</span> Model overfit</h2>
 <p><img src="ProgressReport_files/figure-html/boxp_wt_noise-1.png" width="672" /></p>
 </div>
-<div id="data-contamination-1" class="section level2" number="4.2">
+<div id="data-contamination" class="section level2" number="4.2">
 <h2><span class="header-section-number">4.2</span> Data
 contamination</h2>
 <p><img src="ProgressReport_files/figure-html/boxp_wt_contam-1.png" width="672" /></p>

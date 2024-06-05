@@ -112,10 +112,28 @@ tv_auc_df %>%
               formula = y~s(x, k=30, bs = "cs"), method = "gam", se=F, na.rm = T)+
   geom_line(aes(x=time, y=true_auc), col = "black", size = 0.5)+
   scale_color_manual(values = cbPalette)+
-  labs(col = "Outlier", linetype = "Sample", x = "Time")+
+  labs(col = "Model", linetype = "Sample", x = "Time")+
   facet_wrap(~estimator, nrow = 1)+
   theme(axis.text.x = element_text(vjust = 0.9))
 ```
+
+```{r eval=FALSE}
+# bias across all simulation, no noise model only
+tv_auc_df %>% 
+  # filter(model != "20 noise lasso" & model != "100 noise lasso") %>%
+  mutate(model = factor(model, 
+                        levels = c("No noise", "20 noise", "100 noise"))) %>%
+  left_join(true_auc_df, by = "time") %>% 
+  pivot_longer(3:5, names_to = "estimator", values_to = "AUC") %>% 
+  mutate(bias = AUC-true_auc) %>% group_by(estimator) %>%
+  filter(model == "No noise") %>% 
+  ggplot(aes(x=estimator, y=bias, group=estimator))+
+  geom_boxplot()+
+   stat_summary(fun=mean, colour="red", geom="point", alpha = 0.5,
+               size=3, show.legend=FALSE)
+
+```
+
 
 ### Spread of Incident/Dynamic AUC
 
@@ -171,9 +189,9 @@ c_df %>%
 ```
 
 
-## Data contamination
+## Covariate misalignment
 
-- Data contamination is introduced by adding outliers to test datasets (not noise in the model)
+- Covariate misalignment is introduced by adding misaligned covariate to test datasets (not noise in the model)
 - Within each simulation, we investiage two scenarios: 
 1. 10% contaminated subjects, N(5, 1)
 2. 10% contaminated subjects, N(0, 5)
@@ -213,7 +231,7 @@ tv_auc_df2 %>%
   geom_line(aes(x=time, y=true_auc), col = "black", size = 0.5)+
   facet_wrap(~Estimator, nrow = 1)+
   scale_color_manual(values = cbPalette)+
-  labs(col = "Outlier", linetype = "Sample", x = "Time")+
+  labs(col = "Misalignment", linetype = "Sample", x = "Time")+
   theme(axis.text.x = element_text(vjust = 0.9))
 ```
 
@@ -292,13 +310,16 @@ appl_auc <- bind_rows(tvauc_in_df_gam %>% mutate(sample = "In-sample"),
 
 ```{r appl_auc, fig.width=10, fig.height=3}
 appl_auc %>% 
-  ggplot(aes(x = time, y = AUC, col = model, linetype = sample))+
+  ggplot(aes(x = time, y = AUC, col = model, linetype = sample, linewidth = sample,
+             alpha = sample))+
   geom_smooth(se = F, formula = y~s(x,  k=30, bs = "cs"),
               na.rm = T, method = "gam")+
   labs(x = "Time", y = "AUC",
        linetype = "Sample", color = "Model")+
   facet_grid(~Estimator)+
-  scale_color_manual(values = cbPalette)
+  scale_color_manual(values = cbPalette)+
+  scale_linewidth_manual(values = c(0.6, 1.5), guide = "none")+
+  scale_alpha_manual(values = c(0.5, 1), guide = "none")
 ```
 
 
@@ -325,6 +346,15 @@ appl_c%>%
   scale_fill_manual(values = cbPalette)+
   scale_color_manual(values = cbPalette)
 ```
+
+```{r}
+# summarizing table of average out-of-sample concordance across filed
+appl_c %>% filter(Sample == "Out-of-sample") %>% 
+  group_by(estimator, model) %>% 
+  summarize(mean_c = mean(Freq))
+
+```
+
 ```{r auc_t_scatter, fig.width=10, fig.height=3}
 appl_auc %>% filter(sample == "In-sample") %>%
   mutate(iter=factor(iter, levels = 1:10)) %>%

@@ -267,3 +267,10 @@ bind_rows(tvauc_in_df_gam, tvauc_out_df_gam, tvauc_in_df_lin, tvauc_out_df_lin) 
 
 save(df_c_gam, df_c_lin, tvauc_in_df_gam, tvauc_in_df_lin, tvauc_out_df_gam, tvauc_out_df_lin,
      file = here("Data/ApplResult.RData"))
+save(tvauc_in_df_gam, file = "in_samp_gam.RData")
+
+tvauc_in_df_gam %>% 
+  pivot_longer(3:5) %>% 
+  ggplot(aes(x = time, y = value, col = as.factor(iter)))+
+  geom_point()+
+  facet_wrap(~name)
