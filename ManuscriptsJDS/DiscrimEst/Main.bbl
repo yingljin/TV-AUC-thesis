@@ -1,0 +1,288 @@
+\begin{thebibliography}{57}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Abd~ElHafeez et~al.(2021)Abd~ElHafeez, D'Arrigo, Leonardis, Fusaro, Tripepi, and Roumeliotis}]{ElHafeez2021}
+Abd~ElHafeez S, D'Arrigo G, Leonardis D, Fusaro M, Tripepi G, Roumeliotis S (2021).
+\newblock Methods to analyze time-to-event data: The cox regression analysis.
+\newblock \emph{Oxid Med Cell Longev}.
+
+\bibitem[{Arlot and Celisse(2010)}]{Arlot2010}
+Arlot S, Celisse A (2010).
+\newblock {A survey of cross-validation procedures for model selection}.
+\newblock \emph{Statistics Surveys}, 4(none): 40 -- 79.
+
+\bibitem[{Blanche et~al.(2013{\natexlab{a}})Blanche, Dartigues, and Jacqmin-Gadda}]{Blanche2013}
+Blanche P, Dartigues JF, Jacqmin-Gadda H (2013{\natexlab{a}}).
+\newblock Review and comparison of roc curve estimators for a time-dependent outcome with marker-dependent censoring.
+\newblock \emph{Biometrical Journal}, 55(5): 687--704.
+
+\bibitem[{Blanche et~al.(2018)Blanche, Kattan, and Gerds}]{Blanche2018}
+Blanche P, Kattan MW, Gerds TA (2018).
+\newblock The c-index is not proper for the evaluation of $t$-year predicted risks.
+\newblock \emph{Biostatistics}, 20(2): 347--357.
+
+\bibitem[{Blanche et~al.(2013{\natexlab{b}})Blanche, Latouche, and Viallon}]{Blanche2013_2}
+Blanche P, Latouche A, Viallon V (2013{\natexlab{b}}).
+\newblock Time-dependent auc with right-censored data: A survey.
+\newblock In: \emph{Risk Assessment and Evaluation of Predictions} (MLT Lee, M~Gail, R~Pfeiffer, G~Satten, T~Cai, A~Gandy, eds.), 239--251. Springer New York, New York, NY.
+
+\bibitem[{Breidt et~al.(2005)Breidt, Claeskens, and Opsomer}]{Breidt2005}
+Breidt FJ, Claeskens G, Opsomer JD (2005).
+\newblock Model-assisted estimation for complex surveys using penalised splines.
+\newblock \emph{Biometrika}, 92(4): 831--846.
+
+\bibitem[{Breslow(1975)}]{10.2307/1402659}
+Breslow NE (1975).
+\newblock Analysis of survival data under the proportional hazards model.
+\newblock \emph{International Statistical Review / Revue Internationale de Statistique}, 43(1): 45--57.
+
+\bibitem[{Burman(1989)}]{Burman1989}
+Burman P (1989).
+\newblock A comparative study of ordinary cross-validation, v-fold cross-validation and the repeated learning-testing methods.
+\newblock \emph{Biometrika}, 76(3): 503--514.
+
+\bibitem[{Burman(1990)}]{Burman1990}
+Burman P (1990).
+\newblock Estimation of optimal transformations using v-fold cross validation and repeated learning-testing methods.
+\newblock \emph{Sankhyā: The Indian Journal of Statistics, Series A (1961-2002)}, 52(3): 314--345.
+
+\bibitem[{{Centers for Disease Control and Prevention}({CDC})}]{nhanse}
+{Centers for Disease Control and Prevention} ({CDC}).
+\newblock {{N}ational {C}enter for {H}ealth {S}tatistics (NCHS). {N}ational {H}ealth and {N}utrition {E}xamination {S}urvey {D}ata. {H}yattsville, {MD}: {U.S.} {D}epartment of {H}ealth and {H}uman {S}ervices. {C}enters for {D}isease {C}ontrol and {P}revention}, 2011-2014.
+
+\bibitem[{Cornec-Le~Gall et~al.(2016)Cornec-Le~Gall, Audrézet, Rousseau, Hourmant, Renaudineau, Charasse et~al.}]{Cornec-LeGall2016}
+Cornec-Le~Gall E, Audrézet MP, Rousseau A, Hourmant M, Renaudineau E, Charasse C, et~al. (2016).
+\newblock The propkd score: A new algorithm to predict renal survival in autosomal dominant polycystic kidney disease.
+\newblock \emph{Journal of the American Society of Nephrology}, 27(3): 942--951.
+
+\bibitem[{Cox(1972)}]{cox1972}
+Cox D (1972).
+\newblock Regression models and life-tables.
+\newblock \emph{Journal of the Royal Statistical Society}, 34(2): 187--220.
+
+\bibitem[{Crainiceanu et~al.(2024)Crainiceanu, Goldsmith, Leroux, and Cui}]{FDAwithR}
+Crainiceanu C, Goldsmith J, Leroux A, Cui E (2024).
+\newblock \emph{unctional Data Analysis with R (1st ed.)}.
+\newblock Chapman and Hall/CRC.
+
+\bibitem[{Cui et~al.(2021)Cui, Crainiceanu, and Leroux}]{Cui2021}
+Cui E, Crainiceanu C, Leroux A (2021).
+\newblock Additive functional cox model.
+\newblock \emph{J Comput Graph Stat}, 30(3): 780--793.
+
+\bibitem[{Etzioni et~al.(1999)Etzioni, Pepe, and Longton}]{E1999}
+Etzioni R, Pepe M, Longton G (1999).
+\newblock Incorporating the time dimension in receiver operating characteristic curves: a case study of prostate cancer.
+\newblock \emph{Med Decis Making}, 19(3): 242--251.
+
+\bibitem[{Gonen and Heller(2005)}]{gh2005}
+Gonen M, Heller G (2005).
+\newblock Concordance probability and discriminatory power in proportional hazards regression.
+\newblock \emph{Biometrika}, 92(4): 965--970.
+
+\bibitem[{Harrell et~al.(1996)Harrell, Lee, and Mark}]{Harrell1996}
+Harrell FE, Lee KL, Mark DB (1996).
+\newblock Multivariable prognostic models: issues in developing models, evaluating assumptions and adequacy, and measuring and reducing errors.
+\newblock \emph{Statistics in medicine}, 15(4): 361--87.
+
+\bibitem[{Hartman et~al.(2023)Hartman, Kim, He, and Kalbfleisch}]{hartman2023}
+Hartman N, Kim S, He K, Kalbfleisch JD (2023).
+\newblock Pitfalls of the concordance index for survival outcomes.
+\newblock \emph{Statistics in Medicine}, 42(13): 2179--2190.
+
+\bibitem[{Heagerty et~al.(2000)Heagerty, Lumley, and Pepe}]{hz2004}
+Heagerty PJ, Lumley T, Pepe MS (2000).
+\newblock Time-dependent roc curves for censored survival data and a diagnostic marker.
+\newblock \emph{Biometrics}, 56(2): 337--344.
+
+\bibitem[{Heagerty and packaging~by Paramita Saha-Chaudhuri(2012)}]{hz2012}
+Heagerty PJ, packaging~by Paramita Saha-Chaudhuri (2012).
+\newblock \emph{risksetROC: Riskset ROC curve estimation from censored survival data}.
+\newblock R package version 1.0.4.
+
+\bibitem[{Heagerty and Zheng(2005)}]{hz2005}
+Heagerty PJ, Zheng Y (2005).
+\newblock Survival model predictive accuracy and roc curves.
+\newblock \emph{Biometrics}, 61(1): 92--105.
+
+\bibitem[{Kamarudin et~al.(2017)Kamarudin, Cox, and Kolamunnage-Dona}]{Kamarudin2017}
+Kamarudin AN, Cox T, Kolamunnage-Dona R (2017).
+\newblock Time-dependent roc curve analysis in medical research: current methods and applications.
+\newblock \emph{BMC Medical Research Methodology}, 17(53).
+
+\bibitem[{Korn and Graubard(2011)}]{KornandGraubard2011}
+Korn EL, Graubard BI (2011).
+\newblock \emph{Analysis of health surveys}, volume 323.
+\newblock John Wiley \& Sons, Ltd.
+
+\bibitem[{Leroux et~al.(2019)Leroux, Di, Smirnova, McGuffey, Cao, Bayatmokhtari et~al.}]{Leroux2019}
+Leroux A, Di J, Smirnova E, McGuffey EJ, Cao Q, Bayatmokhtari E, et~al. (2019).
+\newblock Organizing and analyzing the activity data in {NHANES}.
+\newblock \emph{Statistics in Biosciences}, 11(2): 262--287.
+
+\bibitem[{Leroux et~al.(2021)Leroux, Xu, Kundu, Muschelli, Smirnova, Chatterjee et~al.}]{Leroux2021}
+Leroux A, Xu S, Kundu P, Muschelli J, Smirnova E, Chatterjee N, et~al. (2021).
+\newblock Quantifying the predictive performance of objectively measured physical activity on mortality in the uk biobank.
+\newblock \emph{J Gerontol A Biol Sci Med Sci}, 76(8): 1486--1494.
+
+\bibitem[{Lobo et~al.(2008)Lobo, Jiménez-Valverde, and Real}]{Lobo2008}
+Lobo JM, Jiménez-Valverde A, Real R (2008).
+\newblock Auc: a misleading measure of the performance of predictive distribution models.
+\newblock \emph{Global Ecology and Biogeography}, 17(2): 145--151.
+
+\bibitem[{Lumley(2004)}]{Lumley2004}
+Lumley T (2004).
+\newblock Analysis of complex survey samples.
+\newblock \emph{Journal of Statistical Software}, 9(1): 1--19.
+
+\bibitem[{McConville and Breidt(2013)}]{McConvill2013}
+McConville KS, Breidt FJ (2013).
+\newblock Survey design asymptotics for the model-assisted penalised spline regression estimator.
+\newblock \emph{Journal of Nonparametric Statistics}, 25(3): 745--763.
+
+\bibitem[{Mortensen et~al.(2017)Mortensen, Gerds, Jeppesen, and Torp-Pedersen}]{Mortensen2017}
+Mortensen RN, Gerds TA, Jeppesen JL, Torp-Pedersen C (2017).
+\newblock {Office blood pressure or ambulatory blood pressure for the prediction of cardiovascular events}.
+\newblock \emph{European Heart Journal}, 38(44): 3296--3304.
+
+\bibitem[{Pencina et~al.(2009)Pencina, D'Agostino, Larson, Massaro, and Vasan}]{Pencica2009}
+Pencina MJ, D'Agostino RB, Larson MG, Massaro JM, Vasan RS (2009).
+\newblock Predicting the 30-year risk of cardiovascular disease.
+\newblock \emph{Circulation}, 119(24): 3078--3084.
+
+\bibitem[{Pya(2021)}]{pya2021}
+Pya N (2021).
+\newblock \emph{scam: Shape Constrained Additive Models}.
+\newblock R package version 1.2-12.
+
+\bibitem[{{R Core Team}(2021)}]{Rsoftware}
+{R Core Team} (2021).
+\newblock \emph{R: A Language and Environment for Statistical Computing}.
+\newblock R Foundation for Statistical Computing, Vienna, Austria.
+
+\bibitem[{Ramlau-Hansen(1983)}]{Hansen1983}
+Ramlau-Hansen H (1983).
+\newblock {Smoothing Counting Process Intensities by Means of Kernel Functions}.
+\newblock \emph{The Annals of Statistics}, 11(2): 453 -- 466.
+
+\bibitem[{Ramsay and Silverman(2005)}]{FDA}
+Ramsay JO, Silverman BW (2005).
+\newblock \emph{Functional Data Analysis}.
+\newblock Springer New York, NY.
+
+\bibitem[{Saha-Chaudhuri and Heagerty(2012)}]{Saha-Chaudhuri2012}
+Saha-Chaudhuri P, Heagerty PJ (2012).
+\newblock {Non-parametric estimation of a time-dependent predictive accuracy curve}.
+\newblock \emph{Biostatistics}, 14(1): 42--59.
+
+\bibitem[{Schmid et~al.(2013)Schmid, Kestler, and Potapov}]{Schmid2013}
+Schmid M, Kestler HA, Potapov S (2013).
+\newblock On the validity of time-dependent auc estimators.
+\newblock \emph{Briefings in bioinformatics}, 16(1): 153--168.
+
+\bibitem[{Schmid and Potapov(2012)}]{Schmid2012}
+Schmid M, Potapov S (2012).
+\newblock A comparison of estimators to evaluate the discriminatory power of time-to-event models.
+\newblock \emph{Statistics in Medicine}, 31(23): 2588--2609.
+
+\bibitem[{Seshan and Whiting(2022)}]{seshan2022}
+Seshan VE, Whiting K (2022).
+\newblock \emph{clinfun: Clinical Trial Design and Data Analysis Functions}.
+\newblock R package version 1.1.0.
+
+\bibitem[{Shen et~al.(2015)Shen, Ning, and Yuan}]{Shen2015}
+Shen W, Ning J, Yuan Y (2015).
+\newblock A direct method to evaluate the time-dependent predictive accuracy for biomarkers.
+\newblock \emph{Biometrics}, 71(2): 439--49.
+
+\bibitem[{Simon et~al.(2011)Simon, Subramanian, Li, and Menezes}]{Simon2011}
+Simon RM, Subramanian J, Li MC, Menezes S (2011).
+\newblock {Using cross-validation to evaluate predictive accuracy of survival risk classifiers based on high-dimensional data}.
+\newblock \emph{Briefings in Bioinformatics}, 12(3): 203--214.
+
+\bibitem[{Skinner et~al.(2017)Skinner, Wakefield et~al.}]{skinner2017}
+Skinner C, Wakefield J, et~al. (2017).
+\newblock Introduction to the design and analysis of complex survey data.
+\newblock \emph{Statistical Science}, 32(2): 165--175.
+
+\bibitem[{Smirnova et~al.(2020)Smirnova, Leroux, Cao, Tabacu, Zipunnikov, Crainiceanu et~al.}]{Smirnova2020}
+Smirnova E, Leroux A, Cao Q, Tabacu L, Zipunnikov V, Crainiceanu C, et~al. (2020).
+\newblock The predictive performance of objective measures of physical activity derived from accelerometry data for 5-year all-cause mortality in older adults: National health and nutritional examination survey 2003-2006.
+\newblock \emph{J Gerontol A Biol Sci Med Sci}, 75(9): 1779--1785.
+
+\bibitem[{Song and Zhou(2008)}]{SongZhou2008}
+Song X, Zhou XH (2008).
+\newblock A semiparametric approach for the covariate specific roc curve with survival outcome.
+\newblock \emph{Statistica Sinica}, 18(3): 947--965.
+
+\bibitem[{Song et~al.(2012)Song, Zhou, and Ma}]{Song2012}
+Song X, Zhou XH, Ma S (2012).
+\newblock Nonparametric receiver operating characteristic-based evaluation for survival outcomes.
+\newblock \emph{Stat Med}, 31(23): 2660--75.
+
+\bibitem[{Stephenson et~al.(2005)Stephenson, Scardino, Eastham, Bianco, Dotan, DiBlasio et~al.}]{Stephenseon2005}
+Stephenson AJ, Scardino PT, Eastham JA, Bianco FJ, Dotan ZA, DiBlasio CJ, et~al. (2005).
+\newblock Postoperative nomogram predicting the 10-year probability of prostate cancer recurrence after radical prostatectomy.
+\newblock \emph{Journal of Clinical Oncology}, 23(28): 7005--7012.
+
+\bibitem[{Uno et~al.(2011)Uno, Cai, Pencinac, D’Agostinod, and Weib}]{Uno2011}
+Uno H, Cai T, Pencinac MJ, D’Agostinod RB, Weib LJ (2011).
+\newblock On the c-statistics for evaluating overall adequacy of risk prediction procedures with censored survival data.
+\newblock \emph{Statistics in medicine}, 30(10): 1105--1117.
+
+\bibitem[{{van Geloven} et~al.(2021){van Geloven}, He, Zwinderman, and Putter}]{VANGELOVEN2021107095}
+{van Geloven} N, He Y, Zwinderman A, Putter H (2021).
+\newblock Estimation of incident dynamic auc in practice.
+\newblock \emph{Computational Statistics \& Data Analysis}, 154: 107095.
+
+\bibitem[{Wang(2014)}]{Wang2014}
+Wang JL (2014).
+\newblock \emph{Smoothing Hazard Rates}.
+\newblock John Wiley \& Sons, Ltd.
+
+\bibitem[{Wei(1992)}]{AFT}
+Wei LJ (1992).
+\newblock The accelerated failure time model: A useful alternative to the cox regression model in survival analysis.
+\newblock \emph{Statistics in Medicine}, 11(14-15): 1871--1879.
+
+\bibitem[{Wood(2003)}]{wood2003}
+Wood S (2003).
+\newblock Thin-plate regression splines.
+\newblock \emph{Journal of the Royal Statistical Society (B)}, 65(1): 95--114.
+
+\bibitem[{Wood(2004)}]{wood2004}
+Wood S (2004).
+\newblock Stable and efficient multiple smoothing parameter estimation for generalized additive models.
+\newblock \emph{Journal of the American Statistical Association}, 99(467): 673--686.
+
+\bibitem[{Wood(2011)}]{wood2011}
+Wood S (2011).
+\newblock Fast stable restricted maximum likelihood and marginal likelihood estimation of semiparametric generalized linear models.
+\newblock \emph{Journal of the Royal Statistical Society (B)}, 73(1): 3--36.
+
+\bibitem[{Wood(2017)}]{wood2017}
+Wood S (2017).
+\newblock \emph{Generalized Additive Models: An Introduction with R}.
+\newblock Chapman and Hall/CRC, 2 edition.
+
+\bibitem[{Wood et~al.(2016)Wood, Pya, and Säfken}]{Wood2016}
+Wood SN, Pya N, Säfken B (2016).
+\newblock Smoothing parameter and model selection for general smooth models.
+\newblock \emph{Journal of the American Statistical Association}, 111(516): 1548--1563.
+
+\bibitem[{Xu and O'Quigley(2000)}]{10.2307/2680613}
+Xu R, O'Quigley J (2000).
+\newblock Proportional hazards estimate of the conditional survival function.
+\newblock \emph{Journal of the Royal Statistical Society. Series B (Statistical Methodology)}, 62(4): 667--680.
+
+\bibitem[{Yates et~al.(2023)Yates, Aandahl, Richards, and Brook}]{Yates2022}
+Yates LA, Aandahl Z, Richards SA, Brook BW (2023).
+\newblock Cross validation for model selection: A review with examples from ecology.
+\newblock \emph{Ecological Monographs}, 93(1): e1557.
+
+\bibitem[{Zhang et~al.(2018)Zhang, Reinikainen, Adeleke, Pieterse, and Groothuis-Oudshoorn}]{tvcoef}
+Zhang Z, Reinikainen J, Adeleke KA, Pieterse ME, Groothuis-Oudshoorn CGM (2018).
+\newblock Time-varying covariates and coefficients in cox regression models.
+\newblock \emph{Annals of Translational Medicine}, 6(7).
+
+\end{thebibliography}
